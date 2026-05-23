@@ -5,6 +5,61 @@ import { User } from "@/lib/models/User";
 import { verifySessionToken } from "@/lib/auth";
 import { uploadFile } from "@/lib/r2";
 import { PDFParse } from "pdf-parse";
+import fs from "fs";
+import path from "path";
+
+// Initialize and set the PDF worker path statically for Turbopack/Next.js compatibility
+try {
+  let workerPath = "";
+  
+  // 1. Search locally via fs under node_modules/.pnpm/ (common for pnpm environments)
+  try {
+    const pnpmDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "node_modules", ".pnpm");
+    if (fs.existsSync(pnpmDir)) {
+      const files = fs.readdirSync(pnpmDir);
+      const pdfjsDirName = files.find(f => f.startsWith("pdfjs-dist@"));
+      if (pdfjsDirName) {
+        const tempPath = path.join(
+          /*turbopackIgnore: true*/ pnpmDir,
+          pdfjsDirName,
+          "node_modules",
+          "pdfjs-dist",
+          "legacy",
+          "build",
+          "pdf.worker.mjs"
+        );
+        if (fs.existsSync(tempPath)) {
+          workerPath = tempPath;
+        }
+      }
+    }
+  } catch (fsError) {}
+
+  // 2. Search common fallback root locations (common for npm / yarn environments)
+  if (!workerPath) {
+    try {
+      const fallbackPaths = [
+        path.join(/*turbopackIgnore: true*/ process.cwd(), "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs"),
+        path.join(/*turbopackIgnore: true*/ process.cwd(), "node_modules", "pdf-parse", "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs"),
+      ];
+      for (const p of fallbackPaths) {
+        if (fs.existsSync(p)) {
+          workerPath = p;
+          break;
+        }
+      }
+    } catch (fsFallbackError) {}
+  }
+
+  if (workerPath) {
+    PDFParse.setWorker(workerPath);
+    console.log(`[Parser] Statically set worker path: ${workerPath}`);
+  } else {
+    throw new Error("Could not resolve pdf.worker.mjs path");
+  }
+} catch (workerError: any) {
+  console.error("[Parser] Failed to set worker path:", workerError.message || workerError);
+}
 
 export async function POST(request: Request) {
   try {
