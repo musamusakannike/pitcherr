@@ -1,26 +1,95 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=PT+Mono&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap");
 @import "tailwindcss";
 
+@theme {
+  --font-display: "Montserrat", sans-serif;
+  --font-sans: "Roboto", sans-serif;
+  --font-mono: "PT Mono", monospace;
+
+  --color-primary: #111111;
+  --color-secondary: #8b5cf6;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-surface: #ffffff;
+  --color-text-dark: #111827;
+  --color-paper: #faf9f6; /* Warm paper hue */
+  --color-ink: #111111;
+
+  --shadow-paper: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-paper-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.03);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #faf9f6;
+  --foreground: #111111;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Custom Paper-Style Textures & Grid */
+.paper-texture {
+  background-color: #faf9f6;
+  background-image: 
+    radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 0),
+    radial-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 0);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+}
+
+.paper-card {
+  background: #ffffff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  box-shadow: var(--shadow-paper);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.paper-card:hover {
+  box-shadow: var(--shadow-paper-hover);
+  transform: translateY(-1px);
+}
+
+/* Custom Scrollbar for Minimal Look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(17, 17, 17, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 17, 17, 0.3);
+}
+
+/* Glowing animations for loaders */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 25px rgba(139, 92, 246, 0.6);
+  }
+}
+
+.glow-loader {
+  animation: pulseGlow 2s infinite ease-in-out;
 }

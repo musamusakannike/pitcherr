@@ -42,3 +42,6 @@ next-env.d.ts
 
 # AI agent skills
 .agents/
+
+# Firebase secrets
+google-private-keys.json
