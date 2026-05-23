@@ -239,7 +239,7 @@ export default function AuthPage() {
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full py-3 bg-white border border-zinc-200 text-zinc-700 text-xs font-semibold rounded hover:bg-zinc-50 transition-all flex items-center justify-center space-x-2 shadow-paper"
+              className="w-full py-3 bg-white border border-zinc-200 text-zinc-700 text-xs font-semibold rounded hover:bg-zinc-50 transition-all flex items-center justify-center space-x-2 shadow-paper cursor-pointer"
             >
               {/* Google Colored Icon */}
               <svg className="w-4 h-4" viewBox="0 0 24 24">

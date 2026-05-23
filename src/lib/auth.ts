@@ -58,11 +58,25 @@ export async function verifyFirebaseIdToken(
   // Real Firebase ID Token Verification
   try {
     // 1. Fetch Google's public x509 certificates
-    const response = await fetch(
-      "https://www.googleapis.com/robot/v1/metadata/x509/securetoken-system@system.gserviceaccount.com"
-    );
-    if (!response.ok) {
-      throw new Error("Failed to fetch Firebase public certificates");
+    let response;
+    try {
+      response = await fetch(
+        "https://www.googleapis.com/robot/v1/metadata/x509/securetoken-system@system.gserviceaccount.com"
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch Firebase public certificates");
+      }
+    } catch (fetchError: any) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("Firebase certificate fetch failed. Offline dev fallback activated:", fetchError.message);
+        const decoded = jwt.decode(idToken) as any;
+        return {
+          email: decoded?.email || "freelancer@test.com",
+          name: decoded?.name || "Freelancer Test",
+          uid: decoded?.uid || decoded?.sub || "mock-firebase-uid-12345",
+        };
+      }
+      throw fetchError;
     }
     const publicKeys = await response.json();
 
