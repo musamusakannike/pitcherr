@@ -83,6 +83,10 @@ function DashboardContent() {
   const [resumeFileName, setResumeFileName] = useState("");
   const [resumeSaving, setResumeSaving] = useState(false);
   const [resumeMessage, setResumeMessage] = useState("");
+  const [resumeUrl, setResumeUrl] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   // Workspace generator states
   const [jobDescription, setJobDescription] = useState("");
@@ -115,6 +119,7 @@ function DashboardContent() {
       setUser(authData.user);
       setResumeText(authData.user.resumeText || "");
       setResumeFileName(authData.user.resumeFileName || "");
+      setResumeUrl(authData.user.resumeUrl || "");
 
       const propRes = await fetch("/api/proposals");
       const propData = await propRes.json();
@@ -192,12 +197,82 @@ function DashboardContent() {
       if (!response.ok) throw new Error(data.error || "Save profile failed");
 
       setUser(data.user);
+      setResumeText(data.user.resumeText || "");
+      setResumeFileName(data.user.resumeFileName || "");
+      setResumeUrl(data.user.resumeUrl || "");
       setResumeMessage("Resume and profile details saved successfully.");
       setTimeout(() => setResumeMessage(""), 3000);
     } catch (err: any) {
       setResumeMessage(`Error: ${err.message}`);
     } finally {
       setResumeSaving(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    // Validate size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("File is too large. Maximum size is 5MB.");
+      return;
+    }
+
+    // Validate type
+    const validTypes = ["application/pdf", "text/plain"];
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    if (!validTypes.includes(file.type) && fileExtension !== "pdf" && fileExtension !== "txt" && fileExtension !== "md") {
+      setUploadError("Unsupported file type. Please upload a PDF or TXT file.");
+      return;
+    }
+
+    setUploadLoading(true);
+    setUploadError("");
+    setResumeMessage("");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/profile/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to upload file");
+      }
+
+      setUser(data.user);
+      setResumeText(data.user.resumeText || "");
+      setResumeFileName(data.user.resumeFileName || "");
+      setResumeUrl(data.user.resumeUrl || "");
+      setResumeMessage("Resume uploaded and parsed successfully!");
+      setTimeout(() => setResumeMessage(""), 4000);
+    } catch (err: any) {
+      setUploadError(err.message || "Something went wrong during file upload.");
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleFileUpload(file);
     }
   };
 
@@ -573,7 +648,7 @@ function DashboardContent() {
             <div>
               <h1 className="text-2xl font-extrabold font-display text-primary tracking-tight">Freelancer Resume & Portfolio</h1>
               <p className="text-xs font-mono text-zinc-500 mt-1">
-                Upload or paste your professional background once. Pitcherr uses this information to tailors all client proposals.
+                Upload or paste your professional background once. Pitcherr uses this information to tailor all client proposals.
               </p>
             </div>
 
@@ -583,41 +658,136 @@ function DashboardContent() {
               </div>
             )}
 
-            <form onSubmit={handleSaveResume} className="space-y-6">
-              <div>
-                <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
-                  Optional File Name Reference
+            {uploadError && (
+              <div className="p-3 bg-danger/10 border border-danger/25 text-danger text-xs rounded font-mono">
+                {uploadError}
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {/* Drag and Drop Container */}
+              <div className="space-y-2">
+                <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold">
+                  Upload Resume File (PDF / TXT)
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Resume_Senior_FullStack_2026.pdf"
-                  value={resumeFileName}
-                  onChange={(e) => setResumeFileName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans"
-                />
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById("file-input")?.click()}
+                  className={`w-full p-8 border-2 border-dashed rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
+                    isDragging
+                      ? "border-secondary bg-secondary/5 scale-[1.01]"
+                      : "border-zinc-200 hover:border-zinc-400 bg-white"
+                  }`}
+                >
+                  <input
+                    id="file-input"
+                    type="file"
+                    accept=".pdf,.txt,.md"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleFileUpload(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  {uploadLoading ? (
+                    <div className="flex flex-col items-center space-y-3 py-4">
+                      <div className="w-8 h-8 border-3 border-secondary border-t-transparent rounded-full animate-spin" />
+                      <p className="text-xs font-mono text-zinc-500 font-bold uppercase animate-pulse">
+                        Processing & Parsing Document...
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 py-2">
+                      <div className="mx-auto w-12 h-12 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 border border-zinc-200/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-primary font-mono uppercase tracking-wide">
+                          Drag & Drop Resume File here
+                        </p>
+                        <p className="text-[10px] font-mono text-zinc-400 mt-1">
+                          or click to browse from folders (PDF or TXT, max 5MB)
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
-                  Resume/Portfolio Details (Skills, Experience, Metrics)
-                </label>
-                <textarea
-                  placeholder="Paste your resume details here, including past roles, technologies used, significant accomplishments, and performance metrics..."
-                  rows={14}
-                  value={resumeText}
-                  onChange={(e) => setResumeText(e.target.value)}
-                  className="w-full p-4 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans leading-relaxed resize-none"
-                />
-              </div>
+              {resumeFileName && (
+                <div className="flex items-center justify-between p-3.5 bg-zinc-50/80 rounded-lg border border-zinc-200/60 text-xs">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <div className="p-2 bg-white rounded border border-zinc-200 text-secondary">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                    </div>
+                    <div className="truncate">
+                      <p className="font-bold text-primary truncate max-w-xs">{resumeFileName}</p>
+                      {resumeUrl && (
+                        <a
+                          href={resumeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-mono text-secondary hover:underline inline-flex items-center mt-0.5"
+                        >
+                          <span>View uploaded document</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-2.5 h-2.5 ml-1">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <span className="text-[9px] font-mono uppercase bg-zinc-200/50 text-zinc-500 font-bold px-1.5 py-0.5 rounded border border-zinc-300/30">
+                    Active Reference
+                  </span>
+                </div>
+              )}
 
-              <button
-                type="submit"
-                disabled={resumeSaving}
-                className="px-6 py-3 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded transition-all shadow-paper font-mono uppercase tracking-widest"
-              >
-                {resumeSaving ? "Saving..." : "Save Resume Details"}
-              </button>
-            </form>
+              {/* Editable Parsed Content Form */}
+              <form onSubmit={handleSaveResume} className="space-y-6">
+                <div>
+                  <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                    Document Name Reference
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Resume_Senior_FullStack_2026.pdf"
+                    value={resumeFileName}
+                    onChange={(e) => setResumeFileName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                    Extracted Text Details (Review & Tweak for AI Proposal Generation)
+                  </label>
+                  <textarea
+                    placeholder="Extracted resume data will appear here automatically. You can also paste details or manually tune the content below to optimize what the AI scans..."
+                    rows={14}
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                    className="w-full p-4 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans leading-relaxed resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={resumeSaving}
+                  className="px-6 py-3 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded transition-all shadow-paper font-mono uppercase tracking-widest"
+                >
+                  {resumeSaving ? "Saving..." : "Save Tuned Details"}
+                </button>
+              </form>
+            </div>
           </div>
         )}
 

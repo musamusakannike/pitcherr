@@ -6,6 +6,7 @@ export interface IUser extends Document {
   firebaseUid: string;
   resumeText?: string;
   resumeFileName?: string;
+  resumeUrl?: string;
   plan: "free" | "premium";
   proposalsCount: number;
   dva?: {
@@ -25,6 +26,7 @@ const UserSchema: Schema<IUser> = new Schema(
     firebaseUid: { type: String, required: true, unique: true },
     resumeText: { type: String },
     resumeFileName: { type: String },
+    resumeUrl: { type: String },
     plan: { type: String, enum: ["free", "premium"], default: "free" },
     proposalsCount: { type: Number, default: 0 },
     dva: {
