@@ -48,7 +48,7 @@ export default function LandingPage() {
   }, []);
 
   const sampleJob = "Looking for a React developer to build an interactive dashboard with chart integrations and secure payments.";
-  const sampleProposal = `Hi! I can build this React dashboard using Next.js and Chart.js, integrating Paystack securely. In my previous work, I deployed a high-traffic client dashboard that decreased load times by 40% (improving Core Web Vitals) and processed 5,000+ monthly payments successfully. I can start immediately.`;
+  const sampleProposal = `Hi ! I can build this React dashboard using Next.js and Chart.js, integrating Paystack securely. In my previous work, I deployed a high-traffic client dashboard that decreased load times by 40% (improving Core Web Vitals) and processed 5,000+ monthly payments successfully. I can start immediately.`;
 
   // Animate the interactive typewriter simulator
   useEffect(() => {
@@ -402,8 +402,8 @@ export default function LandingPage() {
           <div>
             <h4 className="text-xs font-mono text-zinc-400 uppercase tracking-widest font-bold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm text-zinc-300">
-              <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
+              <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
         </div>
