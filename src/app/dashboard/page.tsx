@@ -931,7 +931,7 @@ function DashboardContent() {
                   <div className="px-6 py-4 border-b border-zinc-200/60 bg-zinc-50/50 flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                       <span className={`w-2 h-2 rounded-full ${isGenerating ? "bg-secondary animate-pulse" : "bg-zinc-300"}`} />
-                      <span className="text-[11px] font-mono text-zinc-500 font-bold uppercase">Proposal Console</span>
+                      <span className="text-[11px] font-mono text-zinc-500 font-bold uppercase">Proposal</span>
                     </div>
 
                     {currentProposal && (
@@ -1451,7 +1451,7 @@ function DashboardContent() {
                     disabled={billingLoading}
                     className="w-full py-3 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded font-mono uppercase tracking-widest text-center transition-all shadow-paper"
                   >
-                    {billingLoading ? "Initializing..." : "Upgrade to Premium via Paystack (₦5,000)"}
+                    {billingLoading ? "Initializing..." : "Upgrade to Premium via Paystack (₦2,000)"}
                   </button>
                 ) : (
                   <div className="p-3 bg-success/15 border border-success/20 rounded text-success text-center text-xs font-semibold">

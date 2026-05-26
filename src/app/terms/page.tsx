@@ -163,7 +163,7 @@ export default function TermsOfService() {
                   <strong>Free Tier:</strong> Free accounts receive 3 tailored proposal generations. Upgrading is required once free units are exhausted.
                 </li>
                 <li>
-                  <strong>Premium Plan:</strong> Premium membership costs <strong>₦5,000 per month</strong> (or regional equivalent), which unlocks unlimited proposal matches, deeper reasoning modes, and dedicated virtual payment deposits.
+                  <strong>Premium Plan:</strong> Premium membership costs <strong>₦2,000 per month</strong> (or regional equivalent), which unlocks unlimited proposal matches, deeper reasoning modes, and dedicated virtual payment deposits.
                 </li>
                 <li>
                   <strong>Payment Processor:</strong> All transactions are securely routed through Paystack. You authorize us to initiate recurring charges for subscription renewals. Subscription fees are charged at the beginning of each billing cycle.

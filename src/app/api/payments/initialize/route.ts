@@ -30,8 +30,8 @@ export async function POST(request: Request) {
     // 2. Determine origin URL
     const originUrl = new URL(request.url).origin;
 
-    // 3. Initialize Paystack Transaction (Premium Plan = 5000 NGN)
-    const amountNGN = 5000;
+    // 3. Initialize Paystack Transaction (Premium Plan = 2000 NGN)
+    const amountNGN = 2000;
     const paymentData = await initializeTransaction(user.email, amountNGN, user._id.toString(), originUrl);
 
     return NextResponse.json({

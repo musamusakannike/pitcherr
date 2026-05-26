@@ -357,7 +357,7 @@ export default function LandingPage() {
               <div>
                 <span className="text-xs font-mono text-secondary uppercase font-semibold">Premium Freelancer</span>
                 <div className="mt-4 flex items-baseline">
-                  <span className="text-4xl font-black font-display text-primary">₦5,000</span>
+                  <span className="text-4xl font-black font-display text-primary">₦2,000</span>
                   <span className="ml-1 text-zinc-500 text-sm">/ month</span>
                 </div>
                 <p className="mt-4 text-sm text-zinc-600">

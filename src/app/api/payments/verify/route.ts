@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/db";
 import { User } from "@/lib/models/User";
 import { verifySessionToken } from "@/lib/auth";
 import { verifyTransaction } from "@/lib/paystack";
+import { sendPremiumWelcomeEmail } from "@/lib/resend";
 
 export async function GET(request: Request) {
   try {
@@ -37,7 +38,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Payment verification failed or transaction not successful" }, { status: 400 });
     }
 
-    // 4. Upgrade user plan to premium in DB
+    // 4. Check user plan before upgrading to prevent duplicate emails
+    const existingUser = await User.findById(decoded.userId);
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const isUpgrading = existingUser.plan !== "premium";
+
+    // 5. Upgrade user plan to premium in DB
     const user = await User.findByIdAndUpdate(
       decoded.userId,
       { plan: "premium" },
@@ -49,6 +58,11 @@ export async function GET(request: Request) {
     }
 
     console.log(`[VERIFY] Successfully verified transaction reference: ${reference} and upgraded user ${user.email} to PREMIUM`);
+
+    // 6. Send premium onboarding welcome email if this is a fresh upgrade
+    if (isUpgrading) {
+      await sendPremiumWelcomeEmail(user.email, user.name);
+    }
 
     return NextResponse.json({
       success: true,

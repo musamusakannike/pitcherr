@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/lib/models/User";
+import { sendPremiumWelcomeEmail } from "@/lib/resend";
 
 export async function POST(request: Request) {
   try {
@@ -40,6 +41,10 @@ export async function POST(request: Request) {
       const status = payload.data.status;
 
       if (email && status === "success") {
+        // Query user first to check if they are already premium
+        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        const isUpgrading = existingUser && existingUser.plan !== "premium";
+
         const user = await User.findOneAndUpdate(
           { email: email.toLowerCase() },
           { plan: "premium" },
@@ -48,6 +53,9 @@ export async function POST(request: Request) {
 
         if (user) {
           console.log(`User ${user.email} successfully upgraded to PREMIUM via Paystack Webhook`);
+          if (isUpgrading) {
+            await sendPremiumWelcomeEmail(user.email, user.name);
+          }
         } else {
           console.warn(`Webhook upgrade failed: User with email ${email} not found in database`);
         }
