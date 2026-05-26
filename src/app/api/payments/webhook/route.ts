@@ -10,24 +10,25 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
     const signature = request.headers.get("x-paystack-signature");
 
-    const secretKey = process.env.PAYSTACK_SECRET_KEY || "mock";
-    const isMock = secretKey === "mock";
+    const secretKey = process.env.PAYSTACK_SECRET_KEY;
+    if (!secretKey || secretKey === "mock") {
+      console.error("Paystack webhook signature verification aborted: PAYSTACK_SECRET_KEY is not configured in production");
+      return NextResponse.json({ error: "Webhook verification failed due to missing configuration" }, { status: 500 });
+    }
 
-    if (!isMock) {
-      if (!signature) {
-        return NextResponse.json({ error: "Missing signature" }, { status: 400 });
-      }
+    if (!signature) {
+      return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+    }
 
-      // Verify Paystack HMAC SHA512 signature
-      const hash = crypto
-        .createHmac("sha512", secretKey)
-        .update(rawBody)
-        .digest("hex");
+    // Verify Paystack HMAC SHA512 signature
+    const hash = crypto
+      .createHmac("sha512", secretKey)
+      .update(rawBody)
+      .digest("hex");
 
-      if (hash !== signature) {
-        console.warn("Invalid Paystack webhook signature detected");
-        return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-      }
+    if (hash !== signature) {
+      console.warn("Invalid Paystack webhook signature detected");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
     const payload = JSON.parse(rawBody);

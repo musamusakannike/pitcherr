@@ -15,7 +15,6 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
 /**
  * Helper to initialize a payment on Paystack.
- * If keys are mock, returns a simulated link pointing back to dashboard.
  */
 export async function initializeTransaction(
   email: string,
@@ -23,69 +22,53 @@ export async function initializeTransaction(
   userId: string,
   originUrl: string
 ): Promise<PaystackInitializeResponse> {
-  const isMock = !PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY === "mock";
+  if (!PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY === "mock") {
+    throw new Error("Paystack secret key is not configured in production");
+  }
+
   const reference = `pitcherr_ref_${Math.random().toString(36).substring(2, 15)}`;
   const koboAmount = amountNGN * 100; // Paystack takes amount in lowest denomination (Kobo for NGN)
 
-  if (isMock) {
-    return {
-      authorization_url: `${originUrl}/dashboard?payment=success&reference=${reference}`,
-      access_code: `mock_access_code_${Date.now()}`,
+  const response = await fetch("https://api.paystack.co/transaction/initialize", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      amount: koboAmount.toString(),
       reference,
-    };
-  }
-
-  try {
-    const response = await fetch("https://api.paystack.co/transaction/initialize", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        "Content-Type": "application/json",
+      callback_url: `${originUrl}/dashboard`,
+      metadata: {
+        userId,
       },
-      body: JSON.stringify({
-        email,
-        amount: koboAmount.toString(),
-        reference,
-        callback_url: `${originUrl}/dashboard`,
-        metadata: {
-          userId,
-        },
-      }),
-    });
+    }),
+  });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Paystack transaction initialization failed: ${errText}`);
-    }
-
-    const resData = await response.json();
-    if (!resData.status) {
-      throw new Error(resData.message || "Initialization status is false");
-    }
-
-    return {
-      authorization_url: resData.data.authorization_url,
-      access_code: resData.data.access_code,
-      reference: resData.data.reference,
-    };
-  } catch (error: any) {
-    console.error("Paystack initialize error, falling back to mock:", error.message);
-    return {
-      authorization_url: `${originUrl}/dashboard?payment=success&reference=${reference}`,
-      access_code: `mock_access_code_${Date.now()}`,
-      reference,
-    };
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Paystack transaction initialization failed: ${errText}`);
   }
+
+  const resData = await response.json();
+  if (!resData.status) {
+    throw new Error(resData.message || "Initialization status is false");
+  }
+
+  return {
+    authorization_url: resData.data.authorization_url,
+    access_code: resData.data.access_code,
+    reference: resData.data.reference,
+  };
 }
 
 /**
  * Verifies a transaction status on Paystack.
  */
 export async function verifyTransaction(reference: string): Promise<boolean> {
-  const isMock = !PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY === "mock" || reference.startsWith("pitcherr_ref_");
-
-  if (isMock) {
-    return true;
+  if (!PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY === "mock") {
+    throw new Error("Paystack secret key is not configured in production");
   }
 
   try {
@@ -110,7 +93,6 @@ export async function verifyTransaction(reference: string): Promise<boolean> {
 
 /**
  * Creates a dedicated virtual account (DVA) for a customer.
- * Uses a single-step account assignment (or multi-step fallback) as documented in paystack dedicated virtual accounts.md
  */
 export async function createDedicatedVirtualAccount(
   email: string,
@@ -118,17 +100,8 @@ export async function createDedicatedVirtualAccount(
   lastName: string,
   phone: string
 ): Promise<PaystackDVAResponse> {
-  const isMock = !PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY === "mock";
-
-  if (isMock) {
-    // Generate a beautiful mock bank account details
-    const randomAccount = Math.floor(1000000000 + Math.random() * 9000000000).toString();
-    return {
-      bankName: "Test Bank (Wema)",
-      accountNumber: randomAccount,
-      accountName: `PITCHERR/${firstName} ${lastName}`.toUpperCase(),
-      customerCode: `CUS_${Math.random().toString(36).substring(2, 12)}`,
-    };
+  if (!PAYSTACK_SECRET_KEY || PAYSTACK_SECRET_KEY === "mock") {
+    throw new Error("Paystack secret key is not configured in production");
   }
 
   try {
@@ -164,7 +137,7 @@ export async function createDedicatedVirtualAccount(
       },
       body: JSON.stringify({
         customer: customerCode,
-        preferred_bank: "test-bank", // Use test-bank for sandbox testing as documented
+        preferred_bank: "titan-paystack",
       }),
     });
 
@@ -185,13 +158,7 @@ export async function createDedicatedVirtualAccount(
       customerCode,
     };
   } catch (error: any) {
-    console.error("Paystack dedicated account setup error, falling back to mock:", error.message);
-    const randomAccount = Math.floor(1000000000 + Math.random() * 9000000000).toString();
-    return {
-      bankName: "Test Bank (Wema)",
-      accountNumber: randomAccount,
-      accountName: `PITCHERR/${firstName} ${lastName}`.toUpperCase(),
-      customerCode: `CUS_${Math.random().toString(36).substring(2, 12)}`,
-    };
+    console.error("Paystack dedicated account setup error:", error.message);
+    throw error;
   }
 }

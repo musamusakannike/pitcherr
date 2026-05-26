@@ -205,16 +205,20 @@ function DashboardContent() {
 
   // Listen to payment callback query params
   useEffect(() => {
-    const paymentStatus = searchParams.get("payment");
     const ref = searchParams.get("reference");
     
-    if (paymentStatus === "success" && ref) {
+    if (ref) {
       setBillingLoading(true);
-      setBillingMessage("Verifying your payment... Upgrading account.");
+      setBillingMessage("Verifying your payment transaction... Upgrading account.");
       
-      // Simulate/trigger immediate server update for local testing/real fallback
-      fetch("/api/payments/simulate", { method: "POST" })
-        .then(res => res.json())
+      // Call secure server verification route
+      fetch(`/api/payments/verify?reference=${encodeURIComponent(ref)}`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error("Transaction verification failed or not successful.");
+          }
+          return res.json();
+        })
         .then(data => {
           if (data.success) {
             setUser(data.user);
@@ -226,7 +230,8 @@ function DashboardContent() {
           }
         })
         .catch(err => {
-          console.error("Simulated upgrade failed:", err);
+          console.error("Payment verification failed:", err);
+          setBillingError("Could not verify your payment reference. Please check your network or contact support.");
           setBillingMessage("");
         })
         .finally(() => {
@@ -743,26 +748,6 @@ function DashboardContent() {
     }
   };
 
-  // Dev Upgrade Simulator
-  const handleDevUpgradeSimulate = async () => {
-    setBillingLoading(true);
-    setBillingError("");
-    setBillingMessage("");
-
-    try {
-      const response = await fetch("/api/payments/simulate", { method: "POST" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-
-      setUser(data.user);
-      setBillingMessage("[SIMULATION] Success! Account upgraded to PREMIUM tier.");
-      setTimeout(() => setBillingMessage(""), 3000);
-    } catch (err: any) {
-      setBillingError(`Simulation error: ${err.message}`);
-    } finally {
-      setBillingLoading(false);
-    }
-  };
 
   // Clipboard Copiers
   const handleCopyProposal = (text: string) => {
@@ -1563,44 +1548,6 @@ function DashboardContent() {
                 )}
               </div>
             </div>
-
-            {/* Developer Simulator Box */}
-            {process.env.NODE_ENV !== "production" && (
-              <div className="p-6 bg-secondary/5 border border-dashed border-secondary/20 rounded-xl space-y-4">
-                <div>
-                  <h4 className="text-xs font-mono text-secondary font-bold uppercase tracking-wider">
-                    🛠 Developer Sandbox Simulator
-                  </h4>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    Bypass real payment configurations by simulating a successful payment webhook or direct status upgrade.
-                  </p>
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleDevUpgradeSimulate}
-                    disabled={billingLoading}
-                    className="py-2 px-4 bg-secondary text-white hover:bg-secondary/95 text-xs font-mono rounded transition-all shadow-paper"
-                  >
-                    Simulate Payment Webhook (Upgrade User)
-                  </button>
-                  {user?.plan === "premium" && (
-                    <button
-                      onClick={async () => {
-                        setBillingLoading(true);
-                        try {
-                          await fetch("/api/payments/simulate?action=downgrade", { method: "POST" });
-                          await fetchData();
-                        } catch (e) {}
-                        setBillingLoading(false);
-                      }}
-                      className="py-2 px-4 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-600 text-xs font-mono rounded transition-all"
-                    >
-                      Downgrade back to Free Tier
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </main>

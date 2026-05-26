@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/lib/models/User";
 import { verifySessionToken } from "@/lib/auth";
+import { verifyTransaction } from "@/lib/paystack";
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   try {
     await connectToDatabase();
 
@@ -21,14 +22,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
-    // 2. Direct database plan simulation (upgrade or downgrade)
+    // 2. Parse reference
     const url = new URL(request.url);
-    const action = url.searchParams.get("action");
-    const plan = action === "downgrade" ? "free" : "premium";
+    const reference = url.searchParams.get("reference");
 
+    if (!reference || reference.trim().length === 0) {
+      return NextResponse.json({ error: "Reference parameter is required" }, { status: 400 });
+    }
+
+    // 3. Verify transaction with Paystack API
+    const isSuccess = await verifyTransaction(reference);
+
+    if (!isSuccess) {
+      return NextResponse.json({ error: "Payment verification failed or transaction not successful" }, { status: 400 });
+    }
+
+    // 4. Upgrade user plan to premium in DB
     const user = await User.findByIdAndUpdate(
       decoded.userId,
-      { plan },
+      { plan: "premium" },
       { new: true }
     );
 
@@ -36,7 +48,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log(`[SIMULATOR] Upgraded user ${user.email} to PREMIUM plan`);
+    console.log(`[VERIFY] Successfully verified transaction reference: ${reference} and upgraded user ${user.email} to PREMIUM`);
 
     return NextResponse.json({
       success: true,
@@ -50,7 +62,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error("Simulation upgrade error:", error);
-    return NextResponse.json({ error: "Simulator failed" }, { status: 500 });
+    console.error("Reference verification error:", error);
+    return NextResponse.json({ error: error.message || "Failed to verify transaction reference" }, { status: 500 });
   }
 }
