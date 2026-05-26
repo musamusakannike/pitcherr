@@ -99,11 +99,10 @@ export default function PrivacyPolicy() {
                   <button
                     key={section.id}
                     onClick={() => handleScrollTo(section.id)}
-                    className={`w-full text-left py-2 px-3 rounded-md text-xs font-medium transition-all ${
-                      activeSection === section.id
+                    className={`w-full text-left py-2 px-3 rounded-md text-xs font-medium transition-all ${activeSection === section.id
                         ? "bg-primary text-white font-semibold"
                         : "text-zinc-600 hover:bg-zinc-100 hover:text-primary"
-                    }`}
+                      }`}
                   >
                     {section.label}
                   </button>
@@ -197,7 +196,7 @@ export default function PrivacyPolicy() {
                   Important Note on DeepSeek API Usage
                 </h4>
                 <p className="text-xs text-zinc-600 leading-relaxed">
-                  Pitcherr passes extracted resume text and your client job descriptions to DeepSeek API to run advanced semantic mapping. Under our commercial agreements with DeepSeek, data sent via our API keys is **strictly used for inference** and is **not** used to train the baseline AI models. 
+                  Pitcherr passes extracted resume text and your client job descriptions to DeepSeek API to run advanced semantic mapping. Under our commercial agreements with DeepSeek, data sent via our API keys is **strictly used for inference** and is **not** used to train the baseline AI models.
                 </p>
               </div>
               <p className="text-sm leading-relaxed">
@@ -258,7 +257,7 @@ export default function PrivacyPolicy() {
               </p>
               <div className="bg-zinc-50 p-6 rounded-xl border border-zinc-200/50 space-y-1.5 max-w-sm">
                 <p className="text-sm font-semibold text-primary">Pitcherr Inc. Legal Office</p>
-                <p className="text-xs text-zinc-500">Email: <a href="mailto:legal@pitcherr.co" className="text-secondary hover:underline">legal@pitcherr.co</a></p>
+                <p className="text-xs text-zinc-500">Email: <a href="mailto:musamusakannike@gmail.com" className="text-secondary hover:underline">musamusakannike@gmail.com</a></p>
                 <p className="text-xs text-zinc-500">Support: <a href="mailto:support@pitcherr.co" className="text-secondary hover:underline">support@pitcherr.co</a></p>
               </div>
             </section>

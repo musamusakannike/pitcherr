@@ -4,6 +4,13 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 
+declare global {
+  interface Window {
+    gapi: any;
+    google: any;
+  }
+}
+
 // Raw SVG icons for zero-dependency reliability
 const LogoutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -96,6 +103,11 @@ function DashboardContent() {
   const [profileTitle, setProfileTitle] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
 
+  // Google Drive states
+  const [showDrivePicker, setShowDrivePicker] = useState(false);
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [driveError, setDriveError] = useState("");
+
   // Workspace generator states
   const [jobDescription, setJobDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -162,6 +174,34 @@ function DashboardContent() {
   useEffect(() => {
     fetchData();
   }, [router]);
+
+  // Load GIS and GAPI dynamically for Google Picker API in the background
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Load Google API Loader (GAPI)
+    const gapiScript = document.createElement("script");
+    gapiScript.src = "https://apis.google.com/js/api.js";
+    gapiScript.async = true;
+    gapiScript.defer = true;
+    document.body.appendChild(gapiScript);
+
+    // Load Google Identity Services (GIS)
+    const gisScript = document.createElement("script");
+    gisScript.src = "https://accounts.google.com/gsi/client";
+    gisScript.async = true;
+    gisScript.defer = true;
+    document.body.appendChild(gisScript);
+
+    return () => {
+      try {
+        document.body.removeChild(gapiScript);
+        document.body.removeChild(gisScript);
+      } catch (err) {
+        // Safe catch if unmount executes after elements are already detached
+      }
+    };
+  }, []);
 
   // Listen to payment callback query params
   useEffect(() => {
@@ -387,6 +427,127 @@ function DashboardContent() {
       setTimeout(() => setResumeMessage(""), 3000);
     } catch (err: any) {
       setResumeMessage(`Error: ${err.message}`);
+    }
+  };
+
+  // Google Drive actual handlers
+  const handleOpenDrivePicker = () => {
+    setDriveError("");
+    handleLaunchLivePicker();
+  };
+
+  const handleLaunchLivePicker = () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+    const appId = process.env.NEXT_PUBLIC_GOOGLE_APP_ID || "914616107673";
+
+    if (!clientId || !apiKey) {
+      setDriveError("Google Drive Integration is missing configuration. Please specify NEXT_PUBLIC_GOOGLE_CLIENT_ID and NEXT_PUBLIC_GOOGLE_API_KEY in your .env.local file.");
+      setShowDrivePicker(true);
+      return;
+    }
+
+    setDriveLoading(true);
+    setShowDrivePicker(true);
+
+    try {
+      if (!window.gapi) {
+        throw new Error("Google API Loader (GAPI) is still loading. Please try again in a few seconds.");
+      }
+
+      window.gapi.load("picker", {
+        callback: () => {
+          if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+            setDriveLoading(false);
+            setDriveError("Google Identity Services library failed to load. Please refresh the page.");
+            return;
+          }
+
+          const tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: "https://www.googleapis.com/auth/drive.readonly",
+            callback: async (tokenResponse: any) => {
+              if (tokenResponse.error) {
+                setDriveLoading(false);
+                setDriveError(`Authorization failed: ${tokenResponse.error_description || tokenResponse.error}`);
+                return;
+              }
+
+              const accessToken = tokenResponse.access_token;
+              if (accessToken) {
+                const picker = new window.google.picker.PickerBuilder()
+                  .addView(new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
+                    .setMimeTypes("application/pdf,text/plain,application/vnd.google-apps.document")
+                    .setSelectFolderEnabled(false)
+                  )
+                  .setOAuthToken(accessToken)
+                  .setDeveloperKey(apiKey)
+                  .setAppId(appId)
+                  .setCallback(async (data: any) => {
+                    if (data.action === window.google.picker.Action.PICKED) {
+                      const doc = data.docs[0];
+                      const fileId = doc.id;
+                      const fileName = doc.name;
+                      const mimeType = doc.mimeType;
+
+                      setDriveLoading(true);
+                      setDriveError("");
+                      try {
+                        let downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+                        let fetchMime = mimeType;
+                        let finalName = fileName;
+
+                        if (mimeType === "application/vnd.google-apps.document") {
+                          downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`;
+                          fetchMime = "application/pdf";
+                          if (!fileName.toLowerCase().endsWith(".pdf")) {
+                            finalName = `${fileName}.pdf`;
+                          }
+                        }
+
+                        const response = await fetch(downloadUrl, {
+                          headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                          },
+                        });
+
+                        if (!response.ok) {
+                          throw new Error(`Failed to fetch file content from Google Drive (HTTP ${response.status})`);
+                        }
+
+                        const blob = await response.blob();
+                        const file = new File([blob], finalName, { type: fetchMime });
+
+                        setShowDrivePicker(false);
+                        setDriveLoading(false);
+                        await handleFileUpload(file);
+                      } catch (err: any) {
+                        setDriveError(err.message);
+                      } finally {
+                        setDriveLoading(false);
+                      }
+                    } else if (data.action === window.google.picker.Action.CANCEL) {
+                      setShowDrivePicker(false);
+                      setDriveLoading(false);
+                    }
+                  })
+                  .build();
+
+                picker.setVisible(true);
+                setDriveLoading(false);
+              } else {
+                setDriveLoading(false);
+                setDriveError("Could not retrieve access token from Google.");
+              }
+            },
+          });
+
+          tokenClient.requestAccessToken({ prompt: "consent" });
+        },
+      });
+    } catch (err: any) {
+      setDriveLoading(false);
+      setDriveError(err.message);
     }
   };
 
@@ -1157,6 +1318,18 @@ function DashboardContent() {
                       </div>
                     )}
                   </div>
+                  <div className="flex justify-center space-x-3 mt-3">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDrivePicker();
+                      }}
+                      className="px-3 py-1.5 bg-white border border-zinc-200 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-500 hover:text-primary hover:bg-zinc-50 rounded flex items-center transition-all shadow-paper cursor-pointer"
+                    >
+                      <img src="/drive.svg" alt="Google Drive" className="w-3.5 h-3.5 mr-1.5 object-contain" /> Import from Google Drive
+                    </button>
+                  </div>
                 </div>
 
                 {resumeFileName && (
@@ -1500,6 +1673,62 @@ function DashboardContent() {
               >
                 Close Preview
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GOOGLE DRIVE IMPORTER OVERLAYS */}
+      {showDrivePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] p-6">
+          <div className="w-full max-w-md bg-white border border-zinc-200 shadow-2xl rounded-2xl overflow-hidden flex flex-col animate-[scaleIn_0.3s_cubic-bezier(0.16,1,0.3,1)] text-zinc-700">
+            <div className="px-6 py-4 border-b border-zinc-200/60 bg-zinc-50/50 flex justify-between items-center">
+              <div className="flex items-center space-x-2.5">
+                <img src="/drive.svg" alt="Google Drive" className="w-5 h-5 object-contain" />
+                <h3 className="text-sm font-extrabold font-display text-primary">
+                  Google Drive Importer
+                </h3>
+              </div>
+              {(driveError || !driveLoading) && (
+                <button
+                  onClick={() => setShowDrivePicker(false)}
+                  className="p-1 hover:bg-zinc-100 rounded text-zinc-400 hover:text-primary transition-all cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <div className="p-6 space-y-4">
+              {driveLoading && (
+                <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                  <div className="w-8 h-8 border-3 border-secondary border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-mono text-zinc-500 font-bold uppercase animate-pulse">Connecting to Google Drive...</p>
+                </div>
+              )}
+
+              {driveError && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-50 border border-red-200/60 rounded-xl space-y-2 text-xs leading-relaxed text-red-800">
+                    <div className="flex items-center space-x-1.5 font-bold font-display">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-red-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                      <span>Connection Error</span>
+                    </div>
+                    <p className="text-zinc-600">{driveError}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDrivePicker(false)}
+                    className="w-full py-2 bg-primary text-white text-xs font-semibold rounded hover:bg-neutral-800 transition-all font-mono uppercase tracking-wider cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
