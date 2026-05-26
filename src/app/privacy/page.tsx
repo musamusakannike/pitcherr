@@ -100,8 +100,8 @@ export default function PrivacyPolicy() {
                     key={section.id}
                     onClick={() => handleScrollTo(section.id)}
                     className={`w-full text-left py-2 px-3 rounded-md text-xs font-medium transition-all ${activeSection === section.id
-                        ? "bg-primary text-white font-semibold"
-                        : "text-zinc-600 hover:bg-zinc-100 hover:text-primary"
+                      ? "bg-primary text-white font-semibold"
+                      : "text-zinc-600 hover:bg-zinc-100 hover:text-primary"
                       }`}
                   >
                     {section.label}
@@ -112,10 +112,10 @@ export default function PrivacyPolicy() {
             <div className="p-6 bg-zinc-50 rounded-xl border border-zinc-200/40 text-center">
               <p className="text-xs text-zinc-500 font-medium">Have questions?</p>
               <a
-                href="mailto:privacy@pitcherr.co"
+                href="mailto:musamusakannike@gmail.com"
                 className="mt-2 block text-xs font-semibold text-secondary hover:underline"
               >
-                privacy@pitcherr.co
+                musamusakannike@gmail.com
               </a>
             </div>
           </aside>
@@ -258,7 +258,7 @@ export default function PrivacyPolicy() {
               <div className="bg-zinc-50 p-6 rounded-xl border border-zinc-200/50 space-y-1.5 max-w-sm">
                 <p className="text-sm font-semibold text-primary">Pitcherr Inc. Legal Office</p>
                 <p className="text-xs text-zinc-500">Email: <a href="mailto:musamusakannike@gmail.com" className="text-secondary hover:underline">musamusakannike@gmail.com</a></p>
-                <p className="text-xs text-zinc-500">Support: <a href="mailto:support@pitcherr.co" className="text-secondary hover:underline">support@pitcherr.co</a></p>
+                <p className="text-xs text-zinc-500">Support: <a href="mailto:musamusakannike@gmail.com" className="text-secondary hover:underline">musamusakannike@gmail.com</a></p>
               </div>
             </section>
           </div>
