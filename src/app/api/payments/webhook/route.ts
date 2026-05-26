@@ -45,16 +45,20 @@ export async function POST(request: Request) {
         const existingUser = await User.findOne({ email: email.toLowerCase() });
         const isUpgrading = existingUser && existingUser.plan !== "premium";
 
+        const premiumExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const user = await User.findOneAndUpdate(
           { email: email.toLowerCase() },
-          { plan: "premium" },
+          { 
+            plan: "premium",
+            premiumExpiresAt: premiumExpiresAt
+          },
           { new: true }
         );
 
         if (user) {
-          console.log(`User ${user.email} successfully upgraded to PREMIUM via Paystack Webhook`);
+          console.log(`User ${user.email} successfully upgraded to PREMIUM via Paystack Webhook (Expires: ${premiumExpiresAt})`);
           if (isUpgrading) {
-            await sendPremiumWelcomeEmail(user.email, user.name);
+            await sendPremiumWelcomeEmail(user.email, user.name, user.premiumExpiresAt);
           }
         } else {
           console.warn(`Webhook upgrade failed: User with email ${email} not found in database`);

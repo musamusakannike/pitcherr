@@ -4,7 +4,15 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
  * HTML Template for Pitcherr Premium Welcome Email.
  * Reflects the app's minimal, paper-textured, print-inspired design with sleek typography and purple accents.
  */
-function getPremiumWelcomeEmailTemplate(userName: string): string {
+function getPremiumWelcomeEmailTemplate(userName: string, expiryDate?: Date): string {
+  const formattedExpiry = expiryDate
+    ? new Date(expiryDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "N/A";
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -75,6 +83,10 @@ function getPremiumWelcomeEmailTemplate(userName: string): string {
                   <td align="right" style="font-size: 13px; font-weight: 700; color: #111111; padding: 4px 0;">Monthly Recurring</td>
                 </tr>
                 <tr>
+                  <td style="font-size: 13px; color: #6b7280; padding: 4px 0;">Expiry Date:</td>
+                  <td align="right" style="font-size: 13px; font-weight: 700; color: #8b5cf6; padding: 4px 0;">${formattedExpiry}</td>
+                </tr>
+                <tr>
                   <td style="font-size: 13px; color: #6b7280; padding: 8px 0 0 0; border-top: 1px dashed rgba(17, 17, 17, 0.06);">Status:</td>
                   <td align="right" style="font-size: 13px; font-weight: 700; color: #16a34a; padding: 8px 0 0 0; border-top: 1px dashed rgba(17, 17, 17, 0.06);">✓ Subscribed & Active</td>
                 </tr>
@@ -119,11 +131,19 @@ function getPremiumWelcomeEmailTemplate(userName: string): string {
 /**
  * Sends the Premium welcome onboarding email using Resend API.
  */
-export async function sendPremiumWelcomeEmail(email: string, userName: string): Promise<boolean> {
+export async function sendPremiumWelcomeEmail(email: string, userName: string, expiryDate?: Date): Promise<boolean> {
   if (!RESEND_API_KEY) {
     console.warn("[RESEND] API key is not configured. Skipping welcome email.");
     return false;
   }
+
+  const formattedExpiry = expiryDate
+    ? new Date(expiryDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "N/A";
 
   // If RESEND_API_KEY is "mock", simulate success and print simulated delivery to the console
   if (RESEND_API_KEY === "mock") {
@@ -132,11 +152,12 @@ export async function sendPremiumWelcomeEmail(email: string, userName: string): 
     console.log(`Sender: Pitcherr Onboarding <onboarding@resend.dev>`);
     console.log(`Subject: Welcome to Pitcherr Premium! 🚀`);
     console.log(`Message Template Loaded for Customer: ${userName}`);
+    console.log(`Premium Expiry Date: ${formattedExpiry}`);
     console.log(`===========================================================\n`);
     return true;
   }
 
-  const html = getPremiumWelcomeEmailTemplate(userName);
+  const html = getPremiumWelcomeEmailTemplate(userName, expiryDate);
 
   try {
     const response = await fetch("https://api.resend.com/emails", {

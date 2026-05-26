@@ -46,10 +46,14 @@ export async function GET(request: Request) {
 
     const isUpgrading = existingUser.plan !== "premium";
 
-    // 5. Upgrade user plan to premium in DB
+    // 5. Upgrade user plan to premium in DB (valid for 30 days)
+    const premiumExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const user = await User.findByIdAndUpdate(
       decoded.userId,
-      { plan: "premium" },
+      { 
+        plan: "premium",
+        premiumExpiresAt: premiumExpiresAt
+      },
       { new: true }
     );
 
@@ -57,11 +61,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log(`[VERIFY] Successfully verified transaction reference: ${reference} and upgraded user ${user.email} to PREMIUM`);
+    console.log(`[VERIFY] Successfully verified transaction reference: ${reference} and upgraded user ${user.email} to PREMIUM (Expires: ${premiumExpiresAt})`);
 
     // 6. Send premium onboarding welcome email if this is a fresh upgrade
     if (isUpgrading) {
-      await sendPremiumWelcomeEmail(user.email, user.name);
+      await sendPremiumWelcomeEmail(user.email, user.name, user.premiumExpiresAt);
     }
 
     return NextResponse.json({

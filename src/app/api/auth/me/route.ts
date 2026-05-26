@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/db";
-import { User } from "@/lib/models/User";
+import { User, checkSubscriptionExpiry } from "@/lib/models/User";
 import { verifySessionToken } from "@/lib/auth";
 
 export async function GET() {
@@ -19,10 +19,12 @@ export async function GET() {
       return NextResponse.json({ user: null });
     }
 
-    const user = await User.findById(decoded.userId);
+    let user = await User.findById(decoded.userId);
     if (!user) {
       return NextResponse.json({ user: null });
     }
+
+    await checkSubscriptionExpiry(user);
 
     return NextResponse.json({
       user: {

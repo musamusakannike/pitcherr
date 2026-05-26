@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/db";
-import { User } from "@/lib/models/User";
+import { User, checkSubscriptionExpiry } from "@/lib/models/User";
 import { verifySessionToken } from "@/lib/auth";
 import { initializeTransaction } from "@/lib/paystack";
 
@@ -22,10 +22,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
-    const user = await User.findById(decoded.userId);
+    let user = await User.findById(decoded.userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    await checkSubscriptionExpiry(user);
 
     // 2. Determine origin URL
     const originUrl = new URL(request.url).origin;

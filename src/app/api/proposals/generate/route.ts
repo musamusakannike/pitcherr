@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/db";
-import { User } from "@/lib/models/User";
+import { User, checkSubscriptionExpiry } from "@/lib/models/User";
 import { Proposal } from "@/lib/models/Proposal";
 import { ResumeProfile } from "@/lib/models/ResumeProfile";
 import { verifySessionToken } from "@/lib/auth";
@@ -25,10 +25,12 @@ export async function POST(request: Request) {
     }
 
     // 2. Fetch fresh user details to check limits
-    const user = await User.findById(decoded.userId);
+    let user = await User.findById(decoded.userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    await checkSubscriptionExpiry(user);
 
     // Check freemium limits
     const isFree = user.plan !== "premium";
