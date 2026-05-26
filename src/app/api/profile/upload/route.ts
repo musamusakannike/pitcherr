@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/lib/models/User";
+import { ResumeProfile } from "@/lib/models/ResumeProfile";
 import { verifySessionToken } from "@/lib/auth";
 import { uploadFile } from "@/lib/r2";
 import { PDFParse } from "pdf-parse";
@@ -145,23 +146,52 @@ Please edit this text box to include your actual work history, projects, and ski
     const { url, key } = await uploadFile(buffer, filename, contentType);
     console.log(`[Storage] Uploaded. Public URL: ${url}`);
 
-    // 5. Update user database record
-    const user = await User.findByIdAndUpdate(
-      decoded.userId,
-      {
-        resumeText: parsedText,
-        resumeFileName: filename,
-        resumeUrl: url,
-      },
-      { new: true }
-    );
-
+    // 5. Update database profile (with legacy sync)
+    const user = await User.findById(decoded.userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const profileId = formData.get("profileId") as string | null;
+    let profile;
+
+    if (profileId && profileId !== "undefined" && profileId !== "null") {
+      // Find and update specific profile
+      profile = await ResumeProfile.findOne({ _id: profileId, userId: user._id });
+      if (profile) {
+        profile.resumeText = parsedText;
+        profile.resumeFileName = filename;
+        profile.resumeUrl = url;
+        await profile.save();
+      }
+    }
+
+    // If no specific profile was updated, create a new one
+    if (!profile) {
+      const displayTitle = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+      
+      // Mark all other profiles inactive if this is a new upload active profile
+      await ResumeProfile.updateMany({ userId: user._id }, { isActive: false });
+
+      profile = await ResumeProfile.create({
+        userId: user._id,
+        title: displayTitle || "Uploaded Resume",
+        resumeText: parsedText,
+        resumeFileName: filename,
+        resumeUrl: url,
+        isActive: true,
+      });
+    }
+
+    // Sync legacy user fields to support standard backward compatibility
+    user.resumeText = parsedText;
+    user.resumeFileName = filename;
+    user.resumeUrl = url;
+    await user.save();
+
     return NextResponse.json({
       success: true,
+      profile,
       user: {
         id: user._id,
         name: user.name,

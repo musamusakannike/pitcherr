@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/lib/models/User";
 import { Proposal } from "@/lib/models/Proposal";
+import { ResumeProfile } from "@/lib/models/ResumeProfile";
 import { verifySessionToken } from "@/lib/auth";
 import { generateProposal } from "@/lib/deepseek";
 
@@ -42,20 +43,47 @@ export async function POST(request: Request) {
     }
 
     // 3. Parse input
-    const { jobDescription } = await request.json();
+    const { jobDescription, profileId } = await request.json();
     if (!jobDescription || jobDescription.trim().length === 0) {
       return NextResponse.json({ error: "Job description is required" }, { status: 400 });
     }
 
-    if (!user.resumeText || user.resumeText.trim().length === 0) {
+    // 4. Resolve the selected or active resume profile
+    let profile;
+    if (profileId && profileId !== "undefined" && profileId !== "null") {
+      profile = await ResumeProfile.findOne({ _id: profileId, userId: user._id });
+    }
+
+    if (!profile) {
+      // Find the active profile
+      profile = await ResumeProfile.findOne({ userId: user._id, isActive: true });
+    }
+
+    if (!profile) {
+      // Backwards compatibility fallback: Check if user has legacy resume data
+      if (user.resumeText && user.resumeText.trim().length > 0) {
+        console.log(`[Generate Fallback] Creating default profile from legacy data for user: ${user._id}`);
+        profile = await ResumeProfile.create({
+          userId: user._id,
+          title: "Default Profile",
+          resumeText: user.resumeText,
+          resumeFileName: user.resumeFileName || "resume.pdf",
+          resumeUrl: user.resumeUrl || "",
+          portfolioUrl: "",
+          isActive: true,
+        });
+      }
+    }
+
+    if (!profile || !profile.resumeText || profile.resumeText.trim().length === 0) {
       return NextResponse.json(
-        { error: "Please upload or paste your resume/portfolio in the profile tab first." },
+        { error: "Please upload or paste your resume details in the profile tab first." },
         { status: 400 }
       );
     }
 
-    // 4. Generate proposal using DeepSeek AI
-    const result = await generateProposal(user.resumeText, jobDescription);
+    // 5. Generate proposal using DeepSeek AI, passing the profile's text and portfolio URL
+    const result = await generateProposal(profile.resumeText, jobDescription, profile.portfolioUrl);
 
     // 5. Save proposal to MongoDB
     const proposal = await Proposal.create({

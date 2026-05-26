@@ -9,14 +9,15 @@ interface ProposalResponse {
  */
 export async function generateProposal(
   resumeText: string,
-  jobDescription: string
+  jobDescription: string,
+  portfolioUrl?: string
 ): Promise<ProposalResponse> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
 
   const isMock = !apiKey || apiKey === "mock";
 
   if (isMock) {
-    return generateMockProposal(resumeText, jobDescription);
+    return generateMockProposal(resumeText, jobDescription, portfolioUrl);
   }
 
   try {
@@ -37,6 +38,7 @@ Include the word "json" in your formatting and ensure your output matches this s
 
     const userPrompt = `Freelancer Resume/Portfolio:
 ${resumeText}
+${portfolioUrl ? `\nFreelancer Portfolio Links / Project Case Studies:\n${portfolioUrl}` : ""}
 
 Client Job Description:
 ${jobDescription}`;
@@ -71,14 +73,18 @@ ${jobDescription}`;
     return parsed;
   } catch (error: any) {
     console.error("Deepseek API generation failed, falling back to mock:", error.message);
-    return generateMockProposal(resumeText, jobDescription);
+    return generateMockProposal(resumeText, jobDescription, portfolioUrl);
   }
 }
 
 /**
  * Generates a high-quality context-aware mock proposal for local testing
  */
-function generateMockProposal(resumeText: string, jobDescription: string): ProposalResponse {
+function generateMockProposal(
+  resumeText: string,
+  jobDescription: string,
+  portfolioUrl?: string
+): ProposalResponse {
   // Simple keyword detection to make the mock response context-aware
   const clientKeywords = ["react", "next.js", "nextjs", "node", "mongodb", "python", "design", "ui", "mobile", "ai", "ecommerce"];
   const detected: string[] = [];
@@ -98,7 +104,7 @@ Hi there,
 
 I read your job description and noticed that you are looking for an expert to execute this project. Based on my past experience working with **${techMentioned}**, I am confident that I can deliver a high-quality solution that meets your exact needs.
 
-Unlike generalist pitches, I want to highlight that I have specifically built similar architectures where performance and scalability were critical. For example, my past portfolio demonstrates:
+Unlike generalist pitches, I want to highlight that I have specifically built similar architectures where performance and scalability were critical.${portfolioUrl ? ` You can explore my live works and relevant case studies here: **[Portfolio Link](${portfolioUrl})**.` : ""} For example, my past portfolio demonstrates:
 1. **Interactive Client Portals** - Delivering responsive, modular frontends built on React/Next.js.
 2. **Reliable Integrations** - Creating custom backend logic, third-party payment integrations, and database schemas that keep data clean and synchronized.
 3. **Optimized Performance** - Ensuring fast page loads (lowering LCP/INP) and writing maintainable code that scales.

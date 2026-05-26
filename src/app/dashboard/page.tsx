@@ -88,6 +88,14 @@ function DashboardContent() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
+  // Multi-profile states
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+  const [activeProfileToEdit, setActiveProfileToEdit] = useState<any>(null);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [profileTitle, setProfileTitle] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+
   // Workspace generator states
   const [jobDescription, setJobDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -117,9 +125,27 @@ function DashboardContent() {
         return;
       }
       setUser(authData.user);
-      setResumeText(authData.user.resumeText || "");
-      setResumeFileName(authData.user.resumeFileName || "");
-      setResumeUrl(authData.user.resumeUrl || "");
+
+      // Fetch profiles
+      const profileRes = await fetch("/api/profile/profiles");
+      const profileData = await profileRes.json();
+      if (profileData.success) {
+        setProfiles(profileData.profiles);
+        const active = profileData.profiles.find((p: any) => p.isActive);
+        if (active) {
+          setSelectedProfileId(active._id);
+          setResumeText(active.resumeText || "");
+          setResumeFileName(active.resumeFileName || "");
+          setResumeUrl(active.resumeUrl || "");
+          setPortfolioUrl(active.portfolioUrl || "");
+        } else if (profileData.profiles.length > 0) {
+          setSelectedProfileId(profileData.profiles[0]._id);
+          setResumeText(profileData.profiles[0].resumeText || "");
+          setResumeFileName(profileData.profiles[0].resumeFileName || "");
+          setResumeUrl(profileData.profiles[0].resumeUrl || "");
+          setPortfolioUrl(profileData.profiles[0].portfolioUrl || "");
+        }
+      }
 
       const propRes = await fetch("/api/proposals");
       const propData = await propRes.json();
@@ -180,27 +206,99 @@ function DashboardContent() {
     }
   };
 
-  // Save Resume text
+  // Create a new empty resume profile
+  const handleCreateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileTitle.trim()) {
+      setUploadError("Profile title is required");
+      return;
+    }
+
+    setUploadLoading(true);
+    setUploadError("");
+    setResumeMessage("");
+
+    try {
+      const response = await fetch("/api/profile/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: profileTitle,
+          portfolioUrl,
+          resumeText: "Please upload a resume file or type your professional experience details here manually.",
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create profile");
+
+      // Reset fields
+      setProfileTitle("");
+      setPortfolioUrl("");
+      setIsCreatingProfile(false);
+
+      // Reload profiles list
+      const profileRes = await fetch("/api/profile/profiles");
+      const profileData = await profileRes.json();
+      if (profileData.success) {
+        setProfiles(profileData.profiles);
+        // Direct users to editing the newly created profile
+        const created = profileData.profiles.find((p: any) => p._id === data.profile._id);
+        if (created) {
+          setActiveProfileToEdit(created);
+          setResumeText(created.resumeText || "");
+          setResumeFileName(created.resumeFileName || "");
+          setResumeUrl(created.resumeUrl || "");
+          setPortfolioUrl(created.portfolioUrl || "");
+        }
+      }
+      setResumeMessage("Profile created successfully! Customize it below.");
+      setTimeout(() => setResumeMessage(""), 4000);
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to create profile.");
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  // Save/Update details for a specific resume profile
   const handleSaveResume = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeProfileToEdit) return;
+
     setResumeSaving(true);
     setResumeMessage("");
 
     try {
-      const response = await fetch("/api/profile", {
-        method: "POST",
+      const response = await fetch(`/api/profile/profiles/${activeProfileToEdit._id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText, resumeFileName }),
+        body: JSON.stringify({
+          title: activeProfileToEdit.title,
+          resumeText,
+          portfolioUrl,
+        }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Save profile failed");
 
-      setUser(data.user);
-      setResumeText(data.user.resumeText || "");
-      setResumeFileName(data.user.resumeFileName || "");
-      setResumeUrl(data.user.resumeUrl || "");
-      setResumeMessage("Resume and profile details saved successfully.");
+      // Reload profiles
+      const profileRes = await fetch("/api/profile/profiles");
+      const profileData = await profileRes.json();
+      if (profileData.success) {
+        setProfiles(profileData.profiles);
+        const updated = profileData.profiles.find((p: any) => p._id === activeProfileToEdit._id);
+        if (updated) {
+          setActiveProfileToEdit(updated);
+          setResumeText(updated.resumeText || "");
+          setResumeFileName(updated.resumeFileName || "");
+          setResumeUrl(updated.resumeUrl || "");
+          setPortfolioUrl(updated.portfolioUrl || "");
+        }
+      }
+
+      setResumeMessage("Profile details updated successfully.");
       setTimeout(() => setResumeMessage(""), 3000);
     } catch (err: any) {
       setResumeMessage(`Error: ${err.message}`);
@@ -209,16 +307,98 @@ function DashboardContent() {
     }
   };
 
+  // Set a resume profile as the active proposal context
+  const handleSetActiveProfile = async (id: string) => {
+    try {
+      const response = await fetch(`/api/profile/profiles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to activate profile");
+
+      setSelectedProfileId(id);
+
+      // Reload profiles
+      const profileRes = await fetch("/api/profile/profiles");
+      const profileData = await profileRes.json();
+      if (profileData.success) {
+        setProfiles(profileData.profiles);
+        const active = profileData.profiles.find((p: any) => p.isActive);
+        if (active) {
+          setResumeText(active.resumeText || "");
+          setResumeFileName(active.resumeFileName || "");
+          setResumeUrl(active.resumeUrl || "");
+          setPortfolioUrl(active.portfolioUrl || "");
+        }
+      }
+      setResumeMessage("Activated profile reference successfully.");
+      setTimeout(() => setResumeMessage(""), 3000);
+    } catch (err: any) {
+      setResumeMessage(`Error: ${err.message}`);
+    }
+  };
+
+  // Delete a resume profile
+  const handleDeleteProfile = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this profile?")) return;
+
+    try {
+      const response = await fetch(`/api/profile/profiles/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to delete profile");
+
+      if (activeProfileToEdit?._id === id) {
+        setActiveProfileToEdit(null);
+      }
+
+      // Reload profiles
+      const profileRes = await fetch("/api/profile/profiles");
+      const profileData = await profileRes.json();
+      if (profileData.success) {
+        setProfiles(profileData.profiles);
+        const active = profileData.profiles.find((p: any) => p.isActive);
+        if (active) {
+          setSelectedProfileId(active._id);
+          setResumeText(active.resumeText || "");
+          setResumeFileName(active.resumeFileName || "");
+          setResumeUrl(active.resumeUrl || "");
+          setPortfolioUrl(active.portfolioUrl || "");
+        } else if (profileData.profiles.length > 0) {
+          setSelectedProfileId(profileData.profiles[0]._id);
+          setResumeText(profileData.profiles[0].resumeText || "");
+          setResumeFileName(profileData.profiles[0].resumeFileName || "");
+          setResumeUrl(profileData.profiles[0].resumeUrl || "");
+          setPortfolioUrl(profileData.profiles[0].portfolioUrl || "");
+        } else {
+          setSelectedProfileId("");
+          setResumeText("");
+          setResumeFileName("");
+          setResumeUrl("");
+          setPortfolioUrl("");
+        }
+      }
+      setResumeMessage("Profile removed successfully.");
+      setTimeout(() => setResumeMessage(""), 3000);
+    } catch (err: any) {
+      setResumeMessage(`Error: ${err.message}`);
+    }
+  };
+
+  // Upload file for a specific profile (updating activeProfileToEdit or creating new)
   const handleFileUpload = async (file: File) => {
     if (!file) return;
 
-    // Validate size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       setUploadError("File is too large. Maximum size is 5MB.");
       return;
     }
 
-    // Validate type
     const validTypes = ["application/pdf", "text/plain"];
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
     if (!validTypes.includes(file.type) && fileExtension !== "pdf" && fileExtension !== "txt" && fileExtension !== "md") {
@@ -232,6 +412,9 @@ function DashboardContent() {
 
     const formData = new FormData();
     formData.append("file", file);
+    if (activeProfileToEdit?._id) {
+      formData.append("profileId", activeProfileToEdit._id);
+    }
 
     try {
       const response = await fetch("/api/profile/upload", {
@@ -244,11 +427,34 @@ function DashboardContent() {
         throw new Error(data.error || "Failed to upload file");
       }
 
+      // Reload profiles list
+      const profileRes = await fetch("/api/profile/profiles");
+      const profileData = await profileRes.json();
+      if (profileData.success) {
+        setProfiles(profileData.profiles);
+        if (activeProfileToEdit?._id) {
+          const updated = profileData.profiles.find((p: any) => p._id === activeProfileToEdit._id);
+          if (updated) {
+            setActiveProfileToEdit(updated);
+            setResumeText(updated.resumeText || "");
+            setResumeFileName(updated.resumeFileName || "");
+            setResumeUrl(updated.resumeUrl || "");
+            setPortfolioUrl(updated.portfolioUrl || "");
+          }
+        } else {
+          const active = profileData.profiles.find((p: any) => p.isActive);
+          if (active) {
+            setSelectedProfileId(active._id);
+            setResumeText(active.resumeText || "");
+            setResumeFileName(active.resumeFileName || "");
+            setResumeUrl(active.resumeUrl || "");
+            setPortfolioUrl(active.portfolioUrl || "");
+          }
+        }
+      }
+
       setUser(data.user);
-      setResumeText(data.user.resumeText || "");
-      setResumeFileName(data.user.resumeFileName || "");
-      setResumeUrl(data.user.resumeUrl || "");
-      setResumeMessage("Resume uploaded and parsed successfully!");
+      setResumeMessage("Document uploaded and parsed successfully!");
       setTimeout(() => setResumeMessage(""), 4000);
     } catch (err: any) {
       setUploadError(err.message || "Something went wrong during file upload.");
@@ -284,8 +490,8 @@ function DashboardContent() {
       return;
     }
 
-    if (!user.resumeText) {
-      setWorkspaceError("Please enter your resume details in the 'My Resume' tab first.");
+    if (!resumeText) {
+      setWorkspaceError("Please select or add a resume profile context first.");
       return;
     }
 
@@ -297,7 +503,7 @@ function DashboardContent() {
       const response = await fetch("/api/proposals/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription }),
+        body: JSON.stringify({ jobDescription, profileId: selectedProfileId }),
       });
 
       const data = await response.json();
@@ -313,7 +519,6 @@ function DashboardContent() {
 
       setCurrentProposal(data.proposal);
       setUser((prev: any) => ({ ...prev, proposalsCount: data.proposalsCount }));
-      // Prepend to proposal history list
       setProposals((prev) => [data.proposal, ...prev]);
     } catch (err: any) {
       setWorkspaceError(err.message || "Failed to contact generator. Please retry.");
@@ -516,6 +721,45 @@ function DashboardContent() {
               {/* Pasting Box */}
               <div className="lg:col-span-1 space-y-4">
                 <form onSubmit={handleGenerateProposal} className="space-y-4">
+                  {profiles.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                        Select Resume Profile
+                      </label>
+                      <select
+                        value={selectedProfileId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedProfileId(id);
+                          const selected = profiles.find(p => p._id === id);
+                          if (selected) {
+                            setResumeText(selected.resumeText || "");
+                            setResumeFileName(selected.resumeFileName || "");
+                            setResumeUrl(selected.resumeUrl || "");
+                            setPortfolioUrl(selected.portfolioUrl || "");
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-xs rounded shadow-paper focus:outline-secondary text-primary font-sans mb-2"
+                      >
+                        {profiles.map((p) => (
+                          <option key={p._id} value={p._id}>
+                            {p.title} {p.isActive ? "★" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedProfileId && (
+                        <div className="p-3 bg-zinc-50 border border-zinc-200/50 rounded text-[10px] font-mono text-zinc-500 space-y-1 mb-2 leading-normal">
+                          <p className="truncate">📄 Active File: <span className="font-bold text-primary">{resumeFileName || "Manual Text Input"}</span></p>
+                          {portfolioUrl && (
+                            <p className="truncate">
+                              🔗 Portfolio: <a href={portfolioUrl} target="_blank" rel="noreferrer" className="text-secondary hover:underline">{portfolioUrl}</a>
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
                       Client Job Description
@@ -642,14 +886,40 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* TAB 2: MY RESUME */}
+        {/* TAB 2: RESUME PROFILES */}
         {activeTab === "resume" && (
-          <div className="max-w-2xl space-y-8">
-            <div>
-              <h1 className="text-2xl font-extrabold font-display text-primary tracking-tight">Freelancer Resume & Portfolio</h1>
-              <p className="text-xs font-mono text-zinc-500 mt-1">
-                Upload or paste your professional background once. Pitcherr uses this information to tailor all client proposals.
-              </p>
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-extrabold font-display text-primary tracking-tight">
+                  {activeProfileToEdit ? `Editing Profile: ${activeProfileToEdit.title}` : "Freelancer Resume Profiles"}
+                </h1>
+                <p className="text-xs font-mono text-zinc-500 mt-1">
+                  {activeProfileToEdit
+                    ? "Modify title, portfolio links, parse files, or manually tweak technical recall text."
+                    : "Manage distinct resume profiles and optional portfolio links for different freelance roles."}
+                </p>
+              </div>
+              
+              {activeProfileToEdit && (
+                <button
+                  onClick={() => {
+                    setActiveProfileToEdit(null);
+                    // Sync active editor fields back to the currently selected profile
+                    const active = profiles.find((p: any) => p.isActive);
+                    if (active) {
+                      setResumeText(active.resumeText || "");
+                      setResumeFileName(active.resumeFileName || "");
+                      setResumeUrl(active.resumeUrl || "");
+                      setPortfolioUrl(active.portfolioUrl || "");
+                    }
+                  }}
+                  className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-xs font-semibold rounded text-zinc-800 font-mono uppercase tracking-widest transition-all text-center self-start"
+                >
+                  ← Back to Profiles
+                </button>
+              )}
             </div>
 
             {resumeMessage && (
@@ -664,130 +934,296 @@ function DashboardContent() {
               </div>
             )}
 
-            <div className="space-y-6">
-              {/* Drag and Drop Container */}
-              <div className="space-y-2">
-                <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold">
-                  Upload Resume File (PDF / TXT)
-                </label>
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => document.getElementById("file-input")?.click()}
-                  className={`w-full p-8 border-2 border-dashed rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
-                    isDragging
-                      ? "border-secondary bg-secondary/5 scale-[1.01]"
-                      : "border-zinc-200 hover:border-zinc-400 bg-white"
-                  }`}
-                >
-                  <input
-                    id="file-input"
-                    type="file"
-                    accept=".pdf,.txt,.md"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        handleFileUpload(e.target.files[0]);
-                      }
-                    }}
-                  />
-                  {uploadLoading ? (
-                    <div className="flex flex-col items-center space-y-3 py-4">
-                      <div className="w-8 h-8 border-3 border-secondary border-t-transparent rounded-full animate-spin" />
-                      <p className="text-xs font-mono text-zinc-500 font-bold uppercase animate-pulse">
-                        Processing & Parsing Document...
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 py-2">
-                      <div className="mx-auto w-12 h-12 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 border border-zinc-200/50">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-                        </svg>
+            {/* Sub-View A: Profiles Grid List */}
+            {!activeProfileToEdit && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. Add Profile Card */}
+                <div className="paper-card bg-white p-6 rounded-xl border border-dashed border-zinc-300 flex flex-col justify-center min-h-[180px]">
+                  {isCreatingProfile ? (
+                    <form onSubmit={handleCreateProfile} className="space-y-3.5">
+                      <div>
+                        <label className="block text-[10px] font-mono text-zinc-400 uppercase font-semibold mb-1">
+                          Role Title (e.g. React Developer)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. UI/UX Designer"
+                          value={profileTitle}
+                          onChange={(e) => setProfileTitle(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-zinc-50 border border-zinc-200 text-xs rounded focus:outline-secondary text-primary font-sans"
+                        />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-primary font-mono uppercase tracking-wide">
-                          Drag & Drop Resume File here
-                        </p>
-                        <p className="text-[10px] font-mono text-zinc-400 mt-1">
-                          or click to browse from folders (PDF or TXT, max 5MB)
-                        </p>
+                        <label className="block text-[10px] font-mono text-zinc-400 uppercase font-semibold mb-1">
+                          Optional Portfolio Link
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. https://github.com/username"
+                          value={portfolioUrl}
+                          onChange={(e) => setPortfolioUrl(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-zinc-50 border border-zinc-200 text-xs rounded focus:outline-secondary text-primary font-sans"
+                        />
                       </div>
-                    </div>
+                      <div className="flex space-x-2 pt-1.5">
+                        <button
+                          type="submit"
+                          className="px-3 py-1.5 bg-primary hover:bg-neutral-800 text-[10px] font-semibold text-white font-mono uppercase tracking-wider rounded transition-all"
+                        >
+                          Create
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCreatingProfile(false);
+                            setProfileTitle("");
+                            setPortfolioUrl("");
+                          }}
+                          className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-[10px] font-semibold text-zinc-700 font-mono uppercase tracking-wider rounded transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={() => setIsCreatingProfile(true)}
+                      className="w-full h-full flex flex-col items-center justify-center space-y-2 py-8 group"
+                    >
+                      <div className="p-3 bg-secondary/5 group-hover:bg-secondary/10 rounded-full text-secondary transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                      </div>
+                      <span className="text-xs font-bold text-zinc-700 font-mono uppercase tracking-wide group-hover:text-primary transition-colors">
+                        Create New Resume Profile
+                      </span>
+                    </button>
                   )}
                 </div>
-              </div>
 
-              {resumeFileName && (
-                <div className="flex items-center justify-between p-3.5 bg-zinc-50/80 rounded-lg border border-zinc-200/60 text-xs">
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    <div className="p-2 bg-white rounded border border-zinc-200 text-secondary">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                      </svg>
+                {/* 2. List of Profiles */}
+                {profiles.map((p) => (
+                  <div
+                    key={p._id}
+                    className={`paper-card p-6 rounded-xl bg-white flex flex-col justify-between min-h-[180px] relative ${
+                      p.isActive ? "border-secondary ring-2 ring-secondary/5" : "border-zinc-200/60"
+                    }`}
+                  >
+                    {p.isActive && (
+                      <span className="absolute top-3 right-3 bg-secondary/15 text-secondary text-[8px] font-mono font-bold px-2 py-0.5 rounded-full uppercase border border-secondary/20">
+                        Active Referral
+                      </span>
+                    )}
+
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="text-sm font-extrabold font-display text-primary truncate max-w-[180px]">{p.title}</h3>
+                        <p className="text-[10px] font-mono text-zinc-400 mt-1 truncate max-w-[200px]">
+                          📄 File: {p.resumeFileName || "Manual Entry"}
+                        </p>
+                      </div>
+                      
+                      {p.portfolioUrl && (
+                        <div className="flex items-center space-x-1.5 text-[10px] font-mono text-zinc-500 bg-zinc-50 px-2 py-1 rounded border border-zinc-200/50 self-start inline-flex truncate max-w-full">
+                          <span>🔗</span>
+                          <a href={p.portfolioUrl} target="_blank" rel="noreferrer" className="text-secondary hover:underline truncate max-w-[160px]">
+                            {p.portfolioUrl}
+                          </a>
+                        </div>
+                      )}
                     </div>
-                    <div className="truncate">
-                      <p className="font-bold text-primary truncate max-w-xs">{resumeFileName}</p>
-                      {resumeUrl && (
-                        <a
-                          href={resumeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-mono text-secondary hover:underline inline-flex items-center mt-0.5"
+
+                    <div className="pt-4 border-t border-zinc-100 flex items-center justify-between gap-2 mt-4">
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => {
+                            setActiveProfileToEdit(p);
+                            setResumeText(p.resumeText || "");
+                            setResumeFileName(p.resumeFileName || "");
+                            setResumeUrl(p.resumeUrl || "");
+                            setPortfolioUrl(p.portfolioUrl || "");
+                          }}
+                          className="px-2 py-1 hover:bg-zinc-100 text-[10px] font-semibold text-zinc-600 hover:text-primary font-mono border border-zinc-200 rounded transition-all"
                         >
-                          <span>View uploaded document</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-2.5 h-2.5 ml-1">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                          Edit / Parse
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProfile(p._id)}
+                          className="p-1 hover:bg-danger/10 text-zinc-400 hover:text-danger border border-zinc-200 rounded transition-all"
+                          title="Delete Profile"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                           </svg>
-                        </a>
+                        </button>
+                      </div>
+
+                      {!p.isActive && (
+                        <button
+                          onClick={() => handleSetActiveProfile(p._id)}
+                          className="px-2.5 py-1 bg-zinc-100 hover:bg-primary hover:text-white text-[10px] font-semibold text-zinc-800 font-mono uppercase tracking-wider rounded transition-all border border-zinc-200"
+                        >
+                          Use Role
+                        </button>
                       )}
                     </div>
                   </div>
-                  
-                  <span className="text-[9px] font-mono uppercase bg-zinc-200/50 text-zinc-500 font-bold px-1.5 py-0.5 rounded border border-zinc-300/30">
-                    Active Reference
-                  </span>
-                </div>
-              )}
+                ))}
+              </div>
+            )}
 
-              {/* Editable Parsed Content Form */}
-              <form onSubmit={handleSaveResume} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
-                    Document Name Reference
+            {/* Sub-View B: Active Profile Editor & Parser */}
+            {activeProfileToEdit && (
+              <div className="space-y-6 max-w-2xl bg-white p-6 md:p-8 rounded-xl border border-zinc-200/60 shadow-paper">
+                
+                {/* Inline title rename */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                      Profile Title (e.g. React Developer)
+                    </label>
+                    <input
+                      type="text"
+                      value={activeProfileToEdit.title}
+                      onChange={(e) => setActiveProfileToEdit({ ...activeProfileToEdit, title: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                      Portfolio Links / Case Studies URL
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. https://github.com/username or https://dribbble.com/designer"
+                      value={portfolioUrl}
+                      onChange={(e) => setPortfolioUrl(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans"
+                    />
+                  </div>
+                </div>
+
+                {/* Drag and Drop Container */}
+                <div className="space-y-2 pt-2">
+                  <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold">
+                    Upload & Parse Resume File for this Profile (PDF / TXT)
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Resume_Senior_FullStack_2026.pdf"
-                    value={resumeFileName}
-                    onChange={(e) => setResumeFileName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans"
-                  />
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById("file-input")?.click()}
+                    className={`w-full p-8 border-2 border-dashed rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center text-center ${
+                      isDragging
+                        ? "border-secondary bg-secondary/5 scale-[1.01]"
+                        : "border-zinc-200 hover:border-zinc-400 bg-white"
+                    }`}
+                  >
+                    <input
+                      id="file-input"
+                      type="file"
+                      accept=".pdf,.txt,.md"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          handleFileUpload(e.target.files[0]);
+                        }
+                      }}
+                    />
+                    {uploadLoading ? (
+                      <div className="flex flex-col items-center space-y-3 py-4">
+                        <div className="w-8 h-8 border-3 border-secondary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-xs font-mono text-zinc-500 font-bold uppercase animate-pulse">
+                          Processing & Parsing Document...
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 py-2">
+                        <div className="mx-auto w-12 h-12 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 border border-zinc-200/50">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-primary font-mono uppercase tracking-wide">
+                            Drag & Drop Resume File here
+                          </p>
+                          <p className="text-[10px] font-mono text-zinc-400 mt-1">
+                            or click to browse from folders (PDF or TXT, max 5MB)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
-                    Extracted Text Details (Review & Tweak for AI Proposal Generation)
-                  </label>
-                  <textarea
-                    placeholder="Extracted resume data will appear here automatically. You can also paste details or manually tune the content below to optimize what the AI scans..."
-                    rows={14}
-                    value={resumeText}
-                    onChange={(e) => setResumeText(e.target.value)}
-                    className="w-full p-4 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans leading-relaxed resize-none"
-                  />
-                </div>
+                {resumeFileName && (
+                  <div className="flex items-center justify-between p-3.5 bg-zinc-50/80 rounded-lg border border-zinc-200/60 text-xs">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className="p-2 bg-white rounded border border-zinc-200 text-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                      </div>
+                      <div className="truncate">
+                        <p className="font-bold text-primary truncate max-w-xs">{resumeFileName}</p>
+                        {resumeUrl && (
+                          <a
+                            href={resumeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-mono text-secondary hover:underline inline-flex items-center mt-0.5"
+                          >
+                            <span>View uploaded document</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-2.5 h-2.5 ml-1">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                <button
-                  type="submit"
-                  disabled={resumeSaving}
-                  className="px-6 py-3 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded transition-all shadow-paper font-mono uppercase tracking-widest"
-                >
-                  {resumeSaving ? "Saving..." : "Save Tuned Details"}
-                </button>
-              </form>
-            </div>
+                {/* Editable Parsed Content Form */}
+                <form onSubmit={handleSaveResume} className="space-y-6 pt-2">
+                  <div>
+                    <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                      Parsed Text Details (Tune for DeepSeek proposal matching context)
+                    </label>
+                    <textarea
+                      placeholder="Resume details extracted will appear here automatically. Tweak achievements or tech specs here manually..."
+                      rows={12}
+                      value={resumeText}
+                      onChange={(e) => setResumeText(e.target.value)}
+                      className="w-full p-4 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans leading-relaxed resize-none"
+                    />
+                  </div>
+
+                  <div className="flex space-x-3">
+                    <button
+                      type="submit"
+                      disabled={resumeSaving}
+                      className="px-6 py-3 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded transition-all shadow-paper font-mono uppercase tracking-widest"
+                    >
+                      {resumeSaving ? "Saving..." : "Save Tuned Details"}
+                    </button>
+                    {!activeProfileToEdit.isActive && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetActiveProfile(activeProfileToEdit._id)}
+                        className="px-6 py-3 bg-secondary text-white hover:bg-secondary/95 text-xs font-semibold rounded transition-all shadow-paper font-mono uppercase tracking-widest"
+                      >
+                        Set as Active Referral
+                      </button>
+                    )}
+                  </div>
+                </form>
+
+              </div>
+            )}
           </div>
         )}
 
