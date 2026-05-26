@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
+import { firebaseAdmin } from "./firebaseAdmin";
 
 const JWT_SECRET = process.env.JWT_SECRET || "pitcherr-fallback-jwt-secret-key-32-chars-long";
-const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "pitcherr-mock";
 
 export interface SessionUser {
   userId: string;
@@ -28,9 +28,8 @@ export function verifySessionToken(token: string): SessionUser | null {
 }
 
 /**
- * Verifies a Firebase ID token (JWT) from Google.
- * If running in mock/offline mode (detected via mock API key), it decodes the token without verification.
- * Otherwise, it fetches Google's public certificates and validates the token signature, audience, and issuer.
+ * Verifies a Firebase ID token using the Firebase Admin SDK.
+ * Falls back to mock/offline decoding when using mock credentials.
  */
 export async function verifyFirebaseIdToken(
   idToken: string
@@ -55,54 +54,13 @@ export async function verifyFirebaseIdToken(
     }
   }
 
-  // Real Firebase ID Token Verification
+  // Real Firebase ID Token Verification via Admin SDK
   try {
-    // 1. Fetch Google's public x509 certificates
-    let response;
-    try {
-      response = await fetch(
-        "https://www.googleapis.com/robot/v1/metadata/x509/securetoken-system@system.gserviceaccount.com"
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch Firebase public certificates");
-      }
-    } catch (fetchError: any) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("Firebase certificate fetch failed. Offline dev fallback activated:", fetchError.message);
-        const decoded = jwt.decode(idToken) as any;
-        return {
-          email: decoded?.email || "freelancer@test.com",
-          name: decoded?.name || "Freelancer Test",
-          uid: decoded?.uid || decoded?.sub || "mock-firebase-uid-12345",
-        };
-      }
-      throw fetchError;
-    }
-    const publicKeys = await response.json();
-
-    // 2. Decode the header to find the kid (Key ID)
-    const decodedToken = jwt.decode(idToken, { complete: true }) as any;
-    if (!decodedToken || !decodedToken.header || !decodedToken.header.kid) {
-      throw new Error("Invalid Firebase ID token structure");
-    }
-
-    const kid = decodedToken.header.kid;
-    const certificate = publicKeys[kid];
-    if (!certificate) {
-      throw new Error("Corresponding Firebase public key not found");
-    }
-
-    // 3. Verify the token signature, audience, and issuer
-    const verified = jwt.verify(idToken, certificate, {
-      algorithms: ["RS256"],
-      audience: FIREBASE_PROJECT_ID,
-      issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
-    }) as any;
-
+    const decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
     return {
-      email: verified.email,
-      name: verified.name || verified.email.split("@")[0],
-      uid: verified.sub,
+      email: decodedToken.email || "",
+      name: decodedToken.name || decodedToken.email?.split("@")[0] || "",
+      uid: decodedToken.uid,
     };
   } catch (error: any) {
     console.error("Firebase ID Token verification error:", error.message);
