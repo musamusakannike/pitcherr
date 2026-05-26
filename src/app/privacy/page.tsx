@@ -148,7 +148,10 @@ export default function PrivacyPolicy() {
                   <strong>Account Information:</strong> When you register via Google Auth (using Firebase), we receive your basic profile data (name, email address, profile picture).
                 </li>
                 <li>
-                  <strong>Freelancer Assets (Resume & Portfolio):</strong> To generate tailored pitches, you upload your resume (typically in PDF format). This document is securely parsed for text extraction and stored in our secure Cloudflare R2 cloud storage.
+                  <strong>Freelancer Assets (Resume & Portfolio):</strong> To generate tailored pitches, you upload your resume (typically in PDF or TXT format). You may upload files directly from your computer, or optionally import them from your personal Google Drive account.
+                </li>
+                <li>
+                  <strong>Google Drive Data (Optional):</strong> If you choose to import a resume file using our optional Google Drive integration, we request read permissions strictly to retrieve the binary content of the specific document you explicitly select via the secure Google Picker API window. Pitcherr does not browse, index, scan, or read any other files or folders in your Google Drive.
                 </li>
                 <li>
                   <strong>Project Job Descriptions:</strong> We collect and process the text of any job descriptions you paste into our AI engine to match your profile metrics and past work.
@@ -204,6 +207,7 @@ export default function PrivacyPolicy() {
               </p>
               <ul className="list-disc pl-5 space-y-2 text-sm">
                 <li><strong>Firebase (Google):</strong> Secures authentication and authenticates client-side state.</li>
+                <li><strong>Google Drive API (Optional):</strong> Retrieves only the specific document file chosen by the user in the Google Picker dialog.</li>
                 <li><strong>Cloudflare R2:</strong> Stores uploaded resumes using standard enterprise-grade S3 security boundaries.</li>
                 <li><strong>Paystack:</strong> Handles subscription billing, card authorizations, and dedicated virtual payment routing.</li>
               </ul>
@@ -217,6 +221,17 @@ export default function PrivacyPolicy() {
               <p className="text-sm leading-relaxed">
                 We **do not sell, rent, or trade** your personal details, resumes, or client descriptions. Your data is only shared with partners specifically required to serve your proposals (e.g., DeepSeek, Firebase, Cloudflare, Paystack) or if required by law to comply with valid judicial processes.
               </p>
+              <div className="p-4 bg-zinc-50 border border-zinc-200/50 rounded-xl space-y-2.5">
+                <h4 className="text-xs font-mono text-zinc-900 font-bold uppercase">
+                  Google API Services User Data Policy Compliance
+                </h4>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Pitcherr's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline font-bold">Google API Services User Data Policy</a>, including the Limited Use requirements.
+                </p>
+                <p className="text-xs text-zinc-600 leading-relaxed font-bold">
+                  Specifically, Google user data obtained via our optional Google Drive integration is used strictly to parse and index your chosen resume CV file. This data is never transferred, shared, or sold to third parties, and is never utilized for advertising or tracking.
+                </p>
+              </div>
             </section>
 
             {/* Section: Security */}
