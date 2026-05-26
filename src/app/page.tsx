@@ -139,7 +139,13 @@ export default function LandingPage() {
           </a>
         </div>
 
-        {/* Concentric Ellipse Canvas Graphic (Interactive CSS/Art) */}
+        {/* Concentric Ellipse Canvas Graphic (Interactive CSS/Art) 
+            COMPOSED IMAGE PROMPT:
+            "Minimalist vector flat line art of a digital workspace. A stylized resume document and a job post document 
+            connecting together into a central glowing purple core with star sparkles. Warm cream-colored textured paper 
+            background (#faf9f6), clean thin dark charcoal lines (#111111), and a soft vibrant purple glow accent (#8b5cf6). 
+            Sophisticated, modern, clean UI vector illustration, extremely minimal, elegant, tech startup style."
+        */}
         <div className="relative mt-16 max-w-4xl mx-auto flex items-center justify-center p-6 border border-zinc-200/50 bg-white/50 rounded-2xl shadow-paper overflow-hidden h-[260px] md:h-[380px]">
           <div className="absolute inset-0 bg-radial-gradient from-secondary/5 to-transparent pointer-events-none" />
           
@@ -149,21 +155,23 @@ export default function LandingPage() {
             <div className="absolute border border-secondary/10 rounded-full w-[240px] h-[240px] md:w-[360px] md:h-[360px] animate-[spin_80s_linear_infinite]" />
             <div className="absolute border border-dashed border-zinc-200 rounded-full w-[320px] h-[320px] md:w-[480px] md:h-[480px] animate-[spin_120s_linear_infinite]" />
             
-            {/* Pulsing glow core */}
-            <div className="z-10 w-24 h-24 md:w-36 md:h-36 rounded-full bg-radial-gradient from-secondary/30 via-secondary/5 to-transparent flex items-center justify-center glow-loader">
-              <div className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-white shadow-paper border border-zinc-200/30 flex items-center justify-center">
-                <SparklesIcon />
-              </div>
+            {/* Pulsing glow core with generated illustration */}
+            <div className="z-10 w-[180px] h-[180px] md:w-[280px] md:h-[280px] rounded-xl overflow-hidden shadow-paper border border-zinc-200 bg-white flex items-center justify-center relative glow-loader transition-transform duration-700 hover:scale-105">
+              <img 
+                src="/proposal_generator.png" 
+                alt="Resume & Job Matching Core Illustration" 
+                className="w-full h-full object-cover"
+              />
             </div>
 
             {/* Float labels */}
-            <div className="absolute top-10 left-10 md:top-20 md:left-24 bg-white px-3 py-1.5 rounded-full shadow-paper border border-zinc-200/50 text-[11px] font-mono text-zinc-500 animate-[bounce_6s_infinite]">
+            <div className="absolute top-6 left-6 md:top-12 md:left-16 bg-white px-3 py-1.5 rounded-full shadow-paper border border-zinc-200/50 text-[11px] font-mono text-zinc-500 animate-[bounce_6s_infinite]">
               📝 Upload Resume
             </div>
-            <div className="absolute bottom-12 right-12 md:bottom-20 md:right-28 bg-white px-3 py-1.5 rounded-full shadow-paper border border-zinc-200/50 text-[11px] font-mono text-zinc-500 animate-[bounce_8s_infinite]">
+            <div className="absolute bottom-6 right-6 md:bottom-12 md:right-20 bg-white px-3 py-1.5 rounded-full shadow-paper border border-zinc-200/50 text-[11px] font-mono text-zinc-500 animate-[bounce_8s_infinite]">
               ⚡ Paste Client Needs
             </div>
-            <div className="absolute top-28 right-8 md:top-36 md:right-16 bg-white px-3 py-1.5 rounded-full shadow-paper border border-zinc-200/50 text-[11px] font-mono text-zinc-500 animate-[bounce_5s_infinite]">
+            <div className="absolute top-24 right-4 md:top-28 md:right-8 bg-white px-3 py-1.5 rounded-full shadow-paper border border-zinc-200/50 text-[11px] font-mono text-zinc-500 animate-[bounce_5s_infinite]">
               🤖 Deepseek Matching
             </div>
           </div>
