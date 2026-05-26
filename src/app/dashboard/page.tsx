@@ -118,7 +118,6 @@ function DashboardContent() {
   const [selectedProposal, setSelectedProposal] = useState<any>(null);
 
   // Billing states
-  const [phone, setPhone] = useState("");
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingMessage, setBillingMessage] = useState("");
   const [billingError, setBillingError] = useState("");
@@ -716,37 +715,6 @@ function DashboardContent() {
     }
   };
 
-  // Create Dedicated Virtual Account
-  const handleCreateDVA = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!phone) {
-      setBillingError("Phone number is required for bank account mapping.");
-      return;
-    }
-
-    setBillingLoading(true);
-    setBillingError("");
-    setBillingMessage("");
-
-    try {
-      const response = await fetch("/api/payments/dva/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Bank account generation failed");
-
-      setUser((prev: any) => ({ ...prev, dva: data.dva }));
-      setBillingMessage("Dedicated Virtual Account successfully mapped to your profile!");
-      setTimeout(() => setBillingMessage(""), 4000);
-    } catch (err: any) {
-      setBillingError(err.message || "DVA mapping failed.");
-    } finally {
-      setBillingLoading(false);
-    }
-  };
 
 
   // Clipboard Copiers
@@ -1444,7 +1412,7 @@ function DashboardContent() {
             <div>
               <h1 className="text-2xl font-extrabold font-display text-primary tracking-tight">Plan & Billing</h1>
               <p className="text-xs font-mono text-zinc-500 mt-1">
-                Manage your subscription, pay via Paystack, or generate a Dedicated Virtual Account for bank deposit upgrades.
+                Manage your subscription or upgrade instantly to the Premium plan via Paystack.
               </p>
             </div>
 
@@ -1460,9 +1428,9 @@ function DashboardContent() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="max-w-xl">
               {/* Account Status Card */}
-              <div className="md:col-span-1 paper-card bg-white p-6 rounded-xl space-y-6 flex flex-col justify-between">
+              <div className="paper-card bg-white p-8 rounded-xl space-y-6 flex flex-col justify-between border border-zinc-200/60 shadow-paper">
                 <div>
                   <span className="text-[10px] font-mono text-zinc-400 uppercase font-semibold">Active Plan</span>
                   <div className="mt-2 flex items-baseline">
@@ -1481,70 +1449,14 @@ function DashboardContent() {
                   <button
                     onClick={handleUpgradePaystack}
                     disabled={billingLoading}
-                    className="w-full py-2.5 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded font-mono uppercase tracking-widest text-center transition-all shadow-paper"
+                    className="w-full py-3 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded font-mono uppercase tracking-widest text-center transition-all shadow-paper"
                   >
-                    {billingLoading ? "Initializing..." : "Upgrade Card ₦5,000"}
+                    {billingLoading ? "Initializing..." : "Upgrade to Premium via Paystack (₦5,000)"}
                   </button>
                 ) : (
-                  <div className="p-2.5 bg-success/15 border border-success/20 rounded text-success text-center text-xs font-semibold">
+                  <div className="p-3 bg-success/15 border border-success/20 rounded text-success text-center text-xs font-semibold">
                     Premium Subscribed
                   </div>
-                )}
-              </div>
-
-              {/* Dedicated Virtual Account Deposit */}
-              <div className="md:col-span-2 paper-card bg-white p-6 rounded-xl space-y-6">
-                <div>
-                  <h3 className="text-sm font-bold font-display text-primary">Dedicated Bank Deposit Account</h3>
-                  <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-                    Registered businesses in Nigeria can deposit funds directly to a dedicated virtual bank account to upgrade instantly.
-                  </p>
-                </div>
-
-                {user?.dva ? (
-                  <div className="bg-zinc-50 p-5 rounded-lg border border-zinc-200/80 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="block text-[10px] font-mono text-zinc-400 uppercase font-semibold">Bank Name</span>
-                        <span className="text-sm font-bold text-primary">{user.dva.bankName}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-mono text-zinc-400 uppercase font-semibold">Account Number</span>
-                        <span className="text-sm font-mono font-bold text-secondary tracking-widest">{user.dva.accountNumber}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-mono text-zinc-400 uppercase font-semibold">Account Name</span>
-                      <span className="text-xs font-mono font-semibold text-primary">{user.dva.accountName}</span>
-                    </div>
-                    <div className="pt-2.5 border-t border-zinc-200">
-                      <p className="text-[10px] font-mono text-zinc-500 leading-relaxed">
-                        💡 Transfers of ₦5,000 to this bank account will automatically trigger our webhook to upgrade your profile status instantly.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <form onSubmit={handleCreateDVA} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
-                        Phone Number
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. +2348123456789"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={billingLoading || !phone}
-                      className="py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-semibold rounded font-mono uppercase tracking-widest transition-all"
-                    >
-                      {billingLoading ? "Generating..." : "Generate Dedicated Bank Account"}
-                    </button>
-                  </form>
                 )}
               </div>
             </div>
