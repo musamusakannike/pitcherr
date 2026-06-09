@@ -10,14 +10,15 @@ interface ProposalResponse {
 export async function generateProposal(
   resumeText: string,
   jobDescription: string,
-  portfolioUrl?: string
+  portfolioUrl?: string,
+  additionalDetails?: string
 ): Promise<ProposalResponse> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
 
   const isMock = !apiKey || apiKey === "mock";
 
   if (isMock) {
-    return generateMockProposal(resumeText, jobDescription, portfolioUrl);
+    return generateMockProposal(resumeText, jobDescription, portfolioUrl, additionalDetails);
   }
 
   try {
@@ -25,6 +26,8 @@ export async function generateProposal(
 Create a highly tailored, non-generic proposal and a step-by-step project approach outline.
 
 Do NOT use generic placeholders (e.g. [My Name], [Company], [X years]). If details are missing, write naturally and represent the freelancer's skills confidently based on their provided resume.
+
+The freelancer may also provide additional personal details (e.g. years of experience, certifications, preferred rates, availability, notable achievements, or anything else they want highlighted). If provided, weave these details naturally into the proposal and outline.
 
 You MUST respond with a valid JSON object containing exactly two keys:
 1. "proposal": A markdown formatted proposal/cover letter matching the freelancer's past work directly to the client's needs.
@@ -38,7 +41,7 @@ Include the word "json" in your formatting and ensure your output matches this s
 
     const userPrompt = `Freelancer Resume/Portfolio:
 ${resumeText}
-${portfolioUrl ? `\nFreelancer Portfolio Links / Project Case Studies:\n${portfolioUrl}` : ""}
+${portfolioUrl ? `\nFreelancer Portfolio Links / Project Case Studies:\n${portfolioUrl}` : ""}${additionalDetails ? `\n\nAdditional Freelancer Details:\n${additionalDetails}` : ""}
 
 Client Job Description:
 ${jobDescription}`;
@@ -73,8 +76,100 @@ ${jobDescription}`;
     return parsed;
   } catch (error: any) {
     console.error("Deepseek API generation failed, falling back to mock:", error.message);
-    return generateMockProposal(resumeText, jobDescription, portfolioUrl);
+    return generateMockProposal(resumeText, jobDescription, portfolioUrl, additionalDetails);
   }
+}
+
+interface FormFieldResponse {
+  field: string;
+  suggestedResponse: string;
+}
+
+export interface FormFillerResponse {
+  responses: FormFieldResponse[];
+}
+
+/**
+ * Takes a list of form fields/questions and generates suggested responses
+ * using the freelancer's resume, additional details, and profile context.
+ */
+export async function generateFormResponses(
+  formFields: string,
+  resumeText: string,
+  portfolioUrl?: string,
+  additionalDetails?: string
+): Promise<FormFillerResponse> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const isMock = !apiKey || apiKey === "mock";
+
+  if (isMock) {
+    return generateMockFormResponses(formFields);
+  }
+
+  try {
+    const systemPrompt = `You are Pitcherr AI, a form-filling assistant for freelancers. The freelancer has pasted a list of form fields or questions that a client application requires. Using the freelancer's resume, portfolio, and additional details, generate a confident, professional suggested response for each field.
+
+Rules:
+- Return a JSON object with a single key "responses" containing an array of objects.
+- Each object has "field" (the original field label/question) and "suggestedResponse" (your suggested answer).
+- Keep responses concise and professional — suitable for pasting directly into form inputs.
+- Do NOT use generic placeholders. Use actual details from the freelancer's profile.
+- If a field is clearly a name, email, URL, or other personal detail field and the information is available, fill it in.
+- For fields you cannot confidently answer from the provided context, write a reasonable professional response and mark it with "(review before submitting)" at the end.
+
+You MUST respond with valid JSON matching this structure:
+{
+  "responses": [
+    { "field": "field label", "suggestedResponse": "your answer" }
+  ]
+}`;
+
+    const userPrompt = `Freelancer Resume/Portfolio:
+${resumeText}
+${portfolioUrl ? `\nPortfolio: ${portfolioUrl}` : ""}${additionalDetails ? `\n\nAdditional Details:\n${additionalDetails}` : ""}
+
+Form Fields to fill:
+${formFields}`;
+
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-v4-pro",
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        thinking: { type: "enabled" },
+        reasoning_effort: "high",
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`DeepSeek API returned error: ${response.status} ${errText}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices[0].message.content;
+    return JSON.parse(content) as FormFillerResponse;
+  } catch (error: any) {
+    console.error("Form filler API failed, falling back to mock:", error.message);
+    return generateMockFormResponses(formFields);
+  }
+}
+
+function generateMockFormResponses(formFields: string): FormFillerResponse {
+  const lines = formFields.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+  const responses: FormFieldResponse[] = lines.map(field => ({
+    field,
+    suggestedResponse: `[Suggested response for "${field}" based on your resume profile] (review before submitting)`,
+  }));
+  return { responses };
 }
 
 /**
@@ -83,7 +178,8 @@ ${jobDescription}`;
 function generateMockProposal(
   resumeText: string,
   jobDescription: string,
-  portfolioUrl?: string
+  portfolioUrl?: string,
+  additionalDetails?: string
 ): ProposalResponse {
   // Simple keyword detection to make the mock response context-aware
   const clientKeywords = ["react", "next.js", "nextjs", "node", "mongodb", "python", "design", "ui", "mobile", "ai", "ecommerce"];

@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
-    const { title, resumeText, portfolioUrl } = await request.json();
+    const { title, resumeText, portfolioUrl, additionalDetails } = await request.json();
 
     if (!title || title.trim().length === 0) {
       return NextResponse.json({ error: "Profile title is required" }, { status: 400 });
@@ -87,6 +87,7 @@ export async function POST(request: Request) {
       title: title.trim(),
       resumeText: cleanedText,
       portfolioUrl: portfolioUrl ? portfolioUrl.trim() : "",
+      additionalDetails: additionalDetails ? additionalDetails.trim() : "",
       isActive,
     });
 

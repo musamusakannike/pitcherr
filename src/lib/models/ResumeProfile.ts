@@ -7,6 +7,7 @@ export interface IResumeProfile extends Document {
   resumeFileName?: string;
   resumeUrl?: string;
   portfolioUrl?: string; // Optional portfolio link
+  additionalDetails?: string; // Free-form extra context (skills, certifications, etc.)
   isActive: boolean;     // The currently selected profile
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +21,7 @@ const ResumeProfileSchema: Schema<IResumeProfile> = new Schema(
     resumeFileName: { type: String },
     resumeUrl: { type: String },
     portfolioUrl: { type: String },
+    additionalDetails: { type: String },
     isActive: { type: Boolean, default: false },
   },
   { timestamps: true }

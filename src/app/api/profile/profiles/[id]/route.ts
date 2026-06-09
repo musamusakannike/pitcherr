@@ -25,7 +25,7 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const { title, resumeText, portfolioUrl, isActive } = await request.json();
+    const { title, resumeText, portfolioUrl, additionalDetails, isActive } = await request.json();
 
     // Find and verify profile ownership
     const profile = await ResumeProfile.findOne({ _id: id, userId: decoded.userId });
@@ -37,7 +37,8 @@ export async function PUT(
     if (title !== undefined) profile.title = title.trim();
     if (resumeText !== undefined) profile.resumeText = resumeText;
     if (portfolioUrl !== undefined) profile.portfolioUrl = portfolioUrl.trim();
-    
+    if (additionalDetails !== undefined) profile.additionalDetails = additionalDetails.trim();
+
     // Set as active if requested
     if (isActive === true) {
       profile.isActive = true;
