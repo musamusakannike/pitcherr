@@ -84,8 +84,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Generate proposal using DeepSeek AI, passing the profile's text and portfolio URL
-    const result = await generateProposal(profile.resumeText, jobDescription, profile.portfolioUrl);
+    // 5. Generate proposal using DeepSeek AI, passing the profile's text, portfolio URL, and additional details
+    const result = await generateProposal(profile.resumeText, jobDescription, profile.portfolioUrl, profile.additionalDetails);
 
     // 5. Save proposal to MongoDB
     const proposal = await Proposal.create({

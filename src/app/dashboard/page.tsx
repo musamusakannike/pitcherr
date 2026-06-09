@@ -60,6 +60,18 @@ const ArrowRightIcon = () => (
   </svg>
 );
 
+const FormFillerIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+  </svg>
+);
+
+const CopyIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.5a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m0 0a2.625 2.625 0 115.25 0H12m-3.75 0h3.75" />
+  </svg>
+);
+
 export default function Dashboard() {
   return (
     <React.Suspense fallback={
@@ -91,6 +103,7 @@ function DashboardContent() {
   const [resumeSaving, setResumeSaving] = useState(false);
   const [resumeMessage, setResumeMessage] = useState("");
   const [resumeUrl, setResumeUrl] = useState("");
+  const [additionalDetails, setAdditionalDetails] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -122,6 +135,13 @@ function DashboardContent() {
   const [billingMessage, setBillingMessage] = useState("");
   const [billingError, setBillingError] = useState("");
 
+  // Form filler states
+  const [formFieldsInput, setFormFieldsInput] = useState("");
+  const [isFillingForm, setIsFillingForm] = useState(false);
+  const [formResponses, setFormResponses] = useState<{field: string; suggestedResponse: string}[]>([]);
+  const [formFillerError, setFormFillerError] = useState("");
+  const [copiedFieldIndex, setCopiedFieldIndex] = useState<number | null>(null);
+
   // Copy helpers
   const [copiedProposal, setCopiedProposal] = useState(false);
   const [copiedOutline, setCopiedOutline] = useState(false);
@@ -149,12 +169,14 @@ function DashboardContent() {
           setResumeFileName(active.resumeFileName || "");
           setResumeUrl(active.resumeUrl || "");
           setPortfolioUrl(active.portfolioUrl || "");
+          setAdditionalDetails(active.additionalDetails || "");
         } else if (profileData.profiles.length > 0) {
           setSelectedProfileId(profileData.profiles[0]._id);
           setResumeText(profileData.profiles[0].resumeText || "");
           setResumeFileName(profileData.profiles[0].resumeFileName || "");
           setResumeUrl(profileData.profiles[0].resumeUrl || "");
           setPortfolioUrl(profileData.profiles[0].portfolioUrl || "");
+          setAdditionalDetails(profileData.profiles[0].additionalDetails || "");
         }
       }
 
@@ -279,6 +301,7 @@ function DashboardContent() {
       // Reset fields
       setProfileTitle("");
       setPortfolioUrl("");
+      setAdditionalDetails("");
       setIsCreatingProfile(false);
 
       // Reload profiles list
@@ -294,6 +317,7 @@ function DashboardContent() {
           setResumeFileName(created.resumeFileName || "");
           setResumeUrl(created.resumeUrl || "");
           setPortfolioUrl(created.portfolioUrl || "");
+          setAdditionalDetails(created.additionalDetails || "");
         }
       }
       setResumeMessage("Profile created successfully! Customize it below.");
@@ -321,6 +345,7 @@ function DashboardContent() {
           title: activeProfileToEdit.title,
           resumeText,
           portfolioUrl,
+          additionalDetails,
         }),
       });
 
@@ -339,6 +364,7 @@ function DashboardContent() {
           setResumeFileName(updated.resumeFileName || "");
           setResumeUrl(updated.resumeUrl || "");
           setPortfolioUrl(updated.portfolioUrl || "");
+          setAdditionalDetails(updated.additionalDetails || "");
         }
       }
 
@@ -376,6 +402,7 @@ function DashboardContent() {
           setResumeFileName(active.resumeFileName || "");
           setResumeUrl(active.resumeUrl || "");
           setPortfolioUrl(active.portfolioUrl || "");
+          setAdditionalDetails(active.additionalDetails || "");
         }
       }
       setResumeMessage("Activated profile reference successfully.");
@@ -413,18 +440,21 @@ function DashboardContent() {
           setResumeFileName(active.resumeFileName || "");
           setResumeUrl(active.resumeUrl || "");
           setPortfolioUrl(active.portfolioUrl || "");
+          setAdditionalDetails(active.additionalDetails || "");
         } else if (profileData.profiles.length > 0) {
           setSelectedProfileId(profileData.profiles[0]._id);
           setResumeText(profileData.profiles[0].resumeText || "");
           setResumeFileName(profileData.profiles[0].resumeFileName || "");
           setResumeUrl(profileData.profiles[0].resumeUrl || "");
           setPortfolioUrl(profileData.profiles[0].portfolioUrl || "");
+          setAdditionalDetails(profileData.profiles[0].additionalDetails || "");
         } else {
           setSelectedProfileId("");
           setResumeText("");
           setResumeFileName("");
           setResumeUrl("");
           setPortfolioUrl("");
+          setAdditionalDetails("");
         }
       }
       setResumeMessage("Profile removed successfully.");
@@ -605,6 +635,7 @@ function DashboardContent() {
             setResumeFileName(updated.resumeFileName || "");
             setResumeUrl(updated.resumeUrl || "");
             setPortfolioUrl(updated.portfolioUrl || "");
+            setAdditionalDetails(updated.additionalDetails || "");
           }
         } else {
           const active = profileData.profiles.find((p: any) => p.isActive);
@@ -614,6 +645,7 @@ function DashboardContent() {
             setResumeFileName(active.resumeFileName || "");
             setResumeUrl(active.resumeUrl || "");
             setPortfolioUrl(active.portfolioUrl || "");
+            setAdditionalDetails(active.additionalDetails || "");
           }
         }
       }
@@ -730,6 +762,55 @@ function DashboardContent() {
     setTimeout(() => setCopiedOutline(false), 2000);
   };
 
+  const handleCopyField = (text: string, index: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedFieldIndex(index);
+    setTimeout(() => setCopiedFieldIndex(null), 2000);
+  };
+
+  const handleGenerateFormResponses = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formFieldsInput || formFieldsInput.trim().length === 0) {
+      setFormFillerError("Please paste your form fields or questions first.");
+      return;
+    }
+
+    if (!resumeText) {
+      setFormFillerError("Please select or add a resume profile context first.");
+      return;
+    }
+
+    setFormFillerError("");
+    setIsFillingForm(true);
+    setFormResponses([]);
+
+    try {
+      const response = await fetch("/api/form-filler/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formFields: formFieldsInput, profileId: selectedProfileId }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === "limit_reached") {
+          setFormFillerError(data.message);
+          setActiveTab("billing");
+        } else {
+          throw new Error(data.error || "Form filler request failed");
+        }
+        return;
+      }
+
+      setFormResponses(data.responses);
+      setUser((prev: any) => ({ ...prev, proposalsCount: data.proposalsCount }));
+    } catch (err: any) {
+      setFormFillerError(err.message || "Failed to generate form responses. Please retry.");
+    } finally {
+      setIsFillingForm(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-paper paper-texture">
@@ -784,6 +865,16 @@ function DashboardContent() {
             >
               <HistoryIcon />
               <span>Pitches ({proposals.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("formfiller")}
+              className={`flex items-center space-x-2.5 px-3 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded transition-all whitespace-nowrap ${
+                activeTab === "formfiller" ? "bg-primary text-white" : "text-zinc-500 hover:text-primary hover:bg-zinc-100"
+              }`}
+            >
+              <FormFillerIcon />
+              <span>Form Filler</span>
             </button>
 
             <button
@@ -851,6 +942,7 @@ function DashboardContent() {
                             setResumeFileName(selected.resumeFileName || "");
                             setResumeUrl(selected.resumeUrl || "");
                             setPortfolioUrl(selected.portfolioUrl || "");
+                            setAdditionalDetails(selected.additionalDetails || "");
                           }
                         }}
                         className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-xs rounded shadow-paper focus:outline-secondary text-primary font-sans mb-2"
@@ -1027,6 +1119,7 @@ function DashboardContent() {
                       setResumeFileName(active.resumeFileName || "");
                       setResumeUrl(active.resumeUrl || "");
                       setPortfolioUrl(active.portfolioUrl || "");
+                      setAdditionalDetails(active.additionalDetails || "");
                     }
                   }}
                   className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-xs font-semibold rounded text-zinc-800 font-mono uppercase tracking-widest transition-all text-center self-start"
@@ -1158,6 +1251,7 @@ function DashboardContent() {
                             setResumeFileName(p.resumeFileName || "");
                             setResumeUrl(p.resumeUrl || "");
                             setPortfolioUrl(p.portfolioUrl || "");
+                            setAdditionalDetails(p.additionalDetails || "");
                           }}
                           className="px-2 py-1 hover:bg-zinc-100 text-[10px] font-semibold text-zinc-600 hover:text-primary font-mono border border-zinc-200 rounded transition-all"
                         >
@@ -1328,6 +1422,22 @@ function DashboardContent() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                      Additional Details (Extra context for AI proposals)
+                    </label>
+                    <p className="text-[10px] font-mono text-zinc-400 mb-2">
+                      Add anything extra you want the AI to know: years of experience, certifications, preferred hourly rate, availability, notable achievements, languages spoken, timezone, etc.
+                    </p>
+                    <textarea
+                      placeholder="e.g. 5+ years experience in React/Node.js, AWS certified, available 40hrs/week, $50/hr rate, fluent in English & French..."
+                      rows={6}
+                      value={additionalDetails}
+                      onChange={(e) => setAdditionalDetails(e.target.value)}
+                      className="w-full p-4 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:outline-secondary text-primary font-sans leading-relaxed resize-none"
+                    />
+                  </div>
+
                   <div className="flex space-x-3">
                     <button
                       type="submit"
@@ -1406,7 +1516,169 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* TAB 4: BILLING */}
+        {/* TAB 4: FORM FILLER */}
+        {activeTab === "formfiller" && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-extrabold font-display text-primary tracking-tight">Form Filler</h1>
+              <p className="text-xs font-mono text-zinc-500 mt-1">
+                Paste a list of form fields or questions from any client application. The AI will suggest professional responses using your resume profile.
+              </p>
+            </div>
+
+            {formFillerError && (
+              <div className="p-3 bg-danger/10 border border-danger/25 text-danger text-xs rounded font-mono">
+                {formFillerError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Input Section */}
+              <div className="space-y-4">
+                <form onSubmit={handleGenerateFormResponses} className="space-y-4">
+                  {profiles.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                        Resume Profile Context
+                      </label>
+                      <select
+                        value={selectedProfileId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedProfileId(id);
+                          const selected = profiles.find(p => p._id === id);
+                          if (selected) {
+                            setResumeText(selected.resumeText || "");
+                            setResumeFileName(selected.resumeFileName || "");
+                            setResumeUrl(selected.resumeUrl || "");
+                            setPortfolioUrl(selected.portfolioUrl || "");
+                            setAdditionalDetails(selected.additionalDetails || "");
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-white border border-zinc-200 text-xs rounded shadow-paper focus:outline-secondary text-primary font-sans"
+                      >
+                        {profiles.map((p) => (
+                          <option key={p._id} value={p._id}>
+                            {p.title} {p.isActive ? "\u2605" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-mono text-zinc-500 uppercase font-semibold mb-1">
+                      Form Fields / Questions
+                    </label>
+                    <p className="text-[10px] font-mono text-zinc-400 mb-2">
+                      Paste the list of form inputs, one per line. e.g. &quot;Full Name&quot;, &quot;Describe your relevant experience&quot;, &quot;Hourly rate&quot;, etc.
+                    </p>
+                    <textarea
+                      placeholder={"Full Name\nEmail Address\nDescribe your relevant experience\nWhat is your hourly rate?\nWhy are you the best fit for this role?\nAvailability / Start date"}
+                      rows={12}
+                      value={formFieldsInput}
+                      onChange={(e) => setFormFieldsInput(e.target.value)}
+                      className="w-full p-4 bg-white border border-zinc-200 text-sm rounded shadow-paper focus:bg-white focus:outline-secondary text-primary font-sans leading-relaxed resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isFillingForm || !resumeText}
+                    className="w-full py-3 bg-primary text-white hover:bg-neutral-800 disabled:opacity-50 text-xs font-semibold rounded transition-all shadow-paper font-mono uppercase tracking-widest flex items-center justify-center space-x-2"
+                  >
+                    {isFillingForm ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Generating Responses...</span>
+                      </>
+                    ) : (
+                      <span>Generate Suggested Responses</span>
+                    )}
+                  </button>
+
+                  {!resumeText && (
+                    <p className="text-[10px] font-mono text-warning text-center">
+                      Please input your resume in the &quot;My Resume&quot; tab first.
+                    </p>
+                  )}
+
+                  {user?.plan !== "premium" && (
+                    <div className="p-3.5 border border-dashed border-zinc-200 rounded bg-white text-center">
+                      <p className="text-[10px] font-mono text-zinc-400">
+                        Consumption Meter: <span className="font-bold text-primary">{user?.proposalsCount}/3 generations used</span>
+                      </p>
+                      <div className="w-full bg-zinc-100 rounded-full h-1.5 mt-2">
+                        <div
+                          className="bg-primary h-1.5 rounded-full"
+                          style={{ width: `${Math.min((user?.proposalsCount / 3) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </form>
+              </div>
+
+              {/* Responses Section */}
+              <div>
+                <div className="border border-zinc-200/60 rounded-xl bg-white shadow-paper min-h-[400px] flex flex-col overflow-hidden">
+                  <div className="px-6 py-4 border-b border-zinc-200/60 bg-zinc-50/50 flex items-center space-x-2">
+                    <span className={`w-2 h-2 rounded-full ${isFillingForm ? "bg-secondary animate-pulse" : "bg-zinc-300"}`} />
+                    <span className="text-[11px] font-mono text-zinc-500 font-bold uppercase">Suggested Responses</span>
+                  </div>
+
+                  <div className="flex-1 p-6 overflow-y-auto">
+                    {isFillingForm && (
+                      <div className="flex flex-col items-center justify-center h-full py-16 space-y-4">
+                        <div className="w-10 h-10 border-4 border-secondary border-t-transparent rounded-full animate-spin" />
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-semibold text-primary">Generating with DeepSeek AI</p>
+                          <p className="text-xs text-zinc-400 font-mono">Matching your profile to each form field...</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!isFillingForm && formResponses.length === 0 && (
+                      <div className="flex flex-col items-center justify-center h-full py-16 text-center text-zinc-400">
+                        <FormFillerIcon />
+                        <p className="text-sm mt-3">Ready to fill your forms</p>
+                        <p className="text-xs mt-1 font-mono text-zinc-400 max-w-sm">
+                          Paste form fields on the left and click Generate to get AI-suggested responses.
+                        </p>
+                      </div>
+                    )}
+
+                    {!isFillingForm && formResponses.length > 0 && (
+                      <div className="space-y-4">
+                        {formResponses.map((item, index) => (
+                          <div key={index} className="p-4 bg-zinc-50/80 border border-zinc-200/60 rounded-lg space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="text-[10px] font-mono text-secondary uppercase font-bold tracking-wider">
+                                {item.field}
+                              </span>
+                              <button
+                                onClick={() => handleCopyField(item.suggestedResponse, index)}
+                                className="flex items-center space-x-1 px-2 py-0.5 bg-white border border-zinc-200 text-[10px] font-mono rounded text-zinc-500 hover:bg-zinc-100 transition-all shrink-0"
+                              >
+                                <CopyIcon />
+                                <span>{copiedFieldIndex === index ? "Copied!" : "Copy"}</span>
+                              </button>
+                            </div>
+                            <p className="text-sm text-primary leading-relaxed whitespace-pre-wrap">
+                              {item.suggestedResponse}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: BILLING */}
         {activeTab === "billing" && (
           <div className="space-y-8">
             <div>
